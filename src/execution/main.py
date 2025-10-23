@@ -19,9 +19,8 @@ SCRIPTS = [
     '04_max_depth.py',              # SCRIPT 5: 
     '05_detection_threshold.py',    # SCRIPT 5: 
 
+    '06_if.py',                     # SCRIPT 6: DETECCIÓN DE ANOMALÍAS
 ]
-
-#    '06_if.py',                     # SCRIPT 6: DETECCIÓN DE ANOMALÍAS
 
 #    '07_metrics.py',                # SCRIPT 7: CÁLCULO DE MÉTRICAS
 #    '08_visualize.py'               # SCRIPT 8: VISUALIZACIÓN DE RESULTADOS

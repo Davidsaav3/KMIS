@@ -1,52 +1,45 @@
 import numpy as np
 import pandas as pd
+import json
+import os
 
+# --- PARÁMETROS ---
 INPUT_CSV = '../../results/execution/00_contaminated.csv'
+HIP_JSON = '../../results/execution/hiperparameters.json'
+
 df = pd.read_csv(INPUT_CSV)
 
-def contaminar_dat_5pct(Dat, porcentaje=0.05, incremento=0.5, random_state=None):
-    # FIJA SEMILLA PARA REPRODUCIBILIDAD
-    np.random.seed(random_state)
+# Eliminar columna 'is_anomaly' si existe
+if 'is_anomaly' in df.columns:
+    df = df.drop(columns=['is_anomaly'])
     
+Dat_np = df.select_dtypes(include=[np.number]).values.flatten()  # 1D
+
+# --- FUNCIONES ---
+def contaminar_dat_5pct(Dat, porcentaje=0.05, incremento=0.5, random_state=None):
+    np.random.seed(random_state)
     S = len(Dat)
     n_anom = max(1, int(S * porcentaje))
-    
-    # COPIA DEL DATASET
     Dat_contaminado = Dat.copy()
-    
-    # INDICES A CONTAMINAR
     indices_anom = np.random.choice(S, size=n_anom, replace=False)
-    
-    # INCREMENTA 50% EN LOS REGISTROS SELECCIONADOS
     Dat_contaminado[indices_anom] = Dat_contaminado[indices_anom] * (1 + incremento)
-    
     return Dat_contaminado, indices_anom
 
 def calcular_FC(Dat_cont, indices_anom, Th, delta=0.2):
-    # CALCULA FALSOS POSITIVOS Y FALSOS NEGATIVOS SEGUN UMBRAL Th
-    scores = Dat_cont  # ASUMIMOS QUE scores = valores del dataset para simplicidad
     pred = np.zeros(len(Dat_cont))
-    pred[scores >= Th] = 1  # CLASIFICA COMO ANOMALÍA SI SCORE >= Th
-
-    # VECTOR DE VERDAD
+    pred[Dat_cont >= Th] = 1
     y_true = np.zeros(len(Dat_cont))
     y_true[indices_anom] = 1
-
-    FP = np.sum((pred == 1) & (y_true == 0)) / max(1, np.sum(y_true == 0))  # TASA DE FALSOS POSITIVOS
-    FN = np.sum((pred == 0) & (y_true == 1)) / max(1, np.sum(y_true == 1))  # TASA DE FALSOS NEGATIVOS
-
-    # FUNCION DE COSTE
+    FP = np.sum((pred == 1) & (y_true == 0)) / max(1, np.sum(y_true == 0))
+    FN = np.sum((pred == 0) & (y_true == 1)) / max(1, np.sum(y_true == 1))
     FC = delta * FP + (1 - delta) * FN
     return FC
 
 def ajustar_umbral(Dat, delta=0.2, Th_min=0.0, Th_max=1.0, grad=0.01, Th=0.5, random_state=None):
     np.random.seed(random_state)
-
-    # CONTAMINA 5% DEL DATASET
     Dat_cont, indices_anom = contaminar_dat_5pct(Dat, porcentaje=0.05, incremento=0.5, random_state=random_state)
     print(f"[INFO] Dataset contaminado con {len(indices_anom)} anomalías")
 
-    # BÚSQUEDA BINARIA
     while Th_max - Th_min >= grad:
         mid1 = (Th + Th_min) / 2
         mid2 = (Th_max + Th) / 2
@@ -67,4 +60,23 @@ def ajustar_umbral(Dat, delta=0.2, Th_min=0.0, Th_max=1.0, grad=0.01, Th=0.5, ra
     return Th
 
 # --- EJECUCIÓN ---
-Th = ajustar_umbral(df, delta=0.2, Th_min=0.0, Th_max=1.0, grad=0.01, Th=0.5, random_state=42)
+Th_ajustado = ajustar_umbral(Dat_np, delta=0.2, Th_min=0.0, Th_max=1.0, grad=0.01, Th=0.5, random_state=42)
+
+# --- JSON: crear o actualizar hiperparameters.json ---
+if os.path.exists(HIP_JSON):
+    with open(HIP_JSON, 'r', encoding='utf-8') as f:
+        hip_data = json.load(f)
+else:
+    hip_data = {}
+
+hip_data['Th'] = {
+    "value": Th_ajustado,
+    "description": "Detection threshold to classify anomalies",
+    "adjustment_method": "Binary search minimizing cost function (FP,FN)",
+    "default": 1.0
+}
+
+with open(HIP_JSON, 'w', encoding='utf-8') as f:
+    json.dump(hip_data, f, indent=4)
+
+print(f"[INFO] hiperparameters.json actualizado con Th={Th_ajustado}")
