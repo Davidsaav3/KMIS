@@ -1,89 +1,109 @@
-import subprocess  
-import sys          
-import logging     
-import os           
+import subprocess 
+import sys 
+import logging 
+import os  
+import json 
 
-# PARÁMETROS 
-RESULTS_FOLDER = '../../results/execution'           
-LOG_FILE = os.path.join(RESULTS_FOLDER, 'log.txt')  
-LOG_LEVEL = logging.INFO                              # NIVEL DE LOG: DEBUG, INFO, WARNING, ERROR
-LOG_OVERWRITE = True                                  # TRUE = SOBRESCRIBIR LOG CADA EJECUCIÓN
+# PARÁMETROS DE EJECUCIÓN
+RESULTS_FOLDER = '../../results/execution'  # CARPETA DE RESULTADOS
+LOG_FILE = os.path.join(RESULTS_FOLDER, 'log.txt')  # ARCHIVO DE LOG
+LOG_LEVEL = logging.INFO  # NIVEL DE LOG
+LOG_OVERWRITE = True  # SOBRESCRIBIR LOG EXISTENTE
+SHOW_OUTPUT = True  # MOSTRAR SALIDA EN CONSOLA
 
 # LISTA DE SCRIPTS A EJECUTAR EN ORDEN
-SCRIPTS = [   
-    '00_contaminate.py',           # SCRIPT 0: CONTAMINAR DATASET
-
-    '01_sample_size.py',            # SCRIPT 1: 
-    '02_number_of_trees.py',        # SCRIPT 2: 
-    '03_max_number_of_features.py', # SCRIPT 3: 
-    '04_max_depth.py',              # SCRIPT 5: 
-    '05_detection_threshold.py',    # SCRIPT 5: 
-
-    '06_if.py',                     # SCRIPT 6: DETECCIÓN DE ANOMALÍAS
-    '07_metrics.py'                 # SCRIPT 7: CÁLCULO DE MÉTRICAS
-
+SCRIPTS = [
+    '00_contaminate.py',  # CONTAMINAR DATOS
+    '01_sample_size.py',  # AJUSTE TAMAÑO MUESTRA
+    '02_number_of_trees.py',  # AJUSTE NÚMERO DE ÁRBOLES
+    '03_max_number_of_features.py',  # AJUSTE MÁXIMO DE FEATURES
+    '04_max_depth.py',  # AJUSTE PROFUNDIDAD MÁXIMA
+    '05_detection_threshold.py',  # AJUSTE UMBRAL DETECCIÓN
+    '06_if.py',  # EJECUCIÓN DEL ALGORITMO IF
+    '07_metrics.py',  # CÁLCULO DE MÉTRICAS
+    '08_visualize.py'  # VISUALIZACIÓN
 ]
 
-#    '08_visualize.py'               # SCRIPT 8: VISUALIZACIÓN DE RESULTADOS
-
-SHOW_OUTPUT = True  
-
-# CREAR CARPETA DE RESULTADOS
-os.makedirs(RESULTS_FOLDER, exist_ok=True) 
+# CREAR CARPETA DE RESULTADOS SI NO EXISTE
+os.makedirs(RESULTS_FOLDER, exist_ok=True)  # CREAR CARPETA RESULTADOS
 
 # CONFIGURAR LOG
 logging.basicConfig(
-    filename=LOG_FILE,                     # ARCHIVO DE SALIDA DEL LOG
-    filemode='w' if LOG_OVERWRITE else 'a',  # 'w' = SOBRESCRIBIR, 'a' = ADJUNTAR
-    level=LOG_LEVEL,                       # NIVEL DE MENSAJES A REGISTRAR
-    format='%(message)s',                  # SOLO MENSAJE, SIN FECHA NI NIVEL
-    encoding='utf-8'                        # CODIFICACIÓN UTF-8
+    filename=LOG_FILE,
+    filemode='w' if LOG_OVERWRITE else 'a',  # MODO ESCRITURA O ADICIÓN
+    level=LOG_LEVEL,
+    format='%(message)s',
+    encoding='utf-8'
 )
 
-# FUNCIÓN AUXILIAR PARA LOG + PANTALLA
+# FUNCIÓN PARA LOGUEAR Y MOSTRAR EN PANTALLA
 def log_print(msg, level='info'):
-    """
-    REGISTRAR MENSAJE EN LOG Y OPCIONALMENTE IMPRIMIR EN PANTALLA
-    level: 'info' O 'error'
-    """
     if level == 'info':
-        logging.info(msg)              # GUARDAR MENSAJE EN LOG
+        logging.info(msg)  # GUARDAR MENSAJE INFO
         if SHOW_OUTPUT:
-            print(msg)                 # IMPRIMIR MENSAJE EN CONSOLA
+            print(msg)  # MOSTRAR EN CONSOLA
     elif level == 'error':
-        logging.error(msg)             # GUARDAR MENSAJE DE ERROR EN LOG
+        logging.error(msg)  # GUARDAR MENSAJE DE ERROR
         if SHOW_OUTPUT:
-            print(msg)                 # IMPRIMIR ERROR EN CONSOLA
+            print(msg)  # MOSTRAR ERROR EN CONSOLA
 
-# EJECUTAR SCRIPTS EN ORDEN
-log_print("[ INICIO ]")  # MARCAR INICIO DE LA EJECUCIÓN
+log_print("[ INICIO ]\n")  # INICIO DE EJECUCIÓN
 
+# LEER HIPERPARÁMETROS INICIALES O CREAR POR DEFECTO
+HIP_JSON = os.path.join(RESULTS_FOLDER, 'hiperparameters.json')
+default_values = {}
+if os.path.exists(HIP_JSON):
+    with open(HIP_JSON, 'r', encoding='utf-8') as f:
+        default_values = json.load(f)  # CARGAR JSON EXISTENTE
+else:
+    default_values = {  # VALORES POR DEFECTO
+        'S': {'value': 256},  # TAMAÑO MUESTRA
+        'T': {'value': 100},  # NÚMERO DE ÁRBOLES
+        'F': {'value': 1.0},  # MÁXIMO DE FEATURES
+        'D': {'value': 1},    # PROFUNDIDAD MÁXIMA
+        'Th': {'value': 0.01} # UMBRAL DETECCIÓN
+    }
+
+# EJECUTAR CADA SCRIPT EN ORDEN
 for script in SCRIPTS:
-    log_print(f"\n[ EJECUTANDO ] {script}\n")  # INFORMAR SCRIPT ACTUAL
+    log_print(f"\n[ EJECUTANDO ] {script}\n")
     try:
-        # LANZAR SCRIPT CON EL INTERPRETE ACTUAL
         process = subprocess.Popen(
-            [sys.executable, script],  # USAR PYTHON ACTUAL
-            stdout=subprocess.PIPE,    # CAPTURAR SALIDA ESTÁNDAR
-            stderr=subprocess.PIPE,    # CAPTURAR ERRORES
-            text=True,                 # SALIDA COMO TEXTO
-            bufsize=1,                 # BUFFER DE LINEA POR LINEA
-            universal_newlines=True    # COMPATIBILIDAD PYTHON 2/3
+            [sys.executable, script],  # EJECUTAR SCRIPT CON PYTHON
+            stdout=subprocess.PIPE,     # CAPTURAR SALIDA ESTÁNDAR
+            stderr=subprocess.PIPE,     # CAPTURAR ERRORES
+            text=True,
+            bufsize=1,
+            universal_newlines=True
         )
 
-        # LEER SALIDA ESTÁNDAR LÍNEA POR LÍNEA
+        # LEER SALIDA ESTÁNDAR DEL SCRIPT
         for line in process.stdout:
-            log_print(line.rstrip())    # LIMPIAR SALIDA Y LOGUEAR
+            log_print(line.rstrip())  # IMPRIMIR CADA LÍNEA
 
-        # LEER ERRORES LÍNEA POR LÍNEA
+        # LEER ERRORES DEL SCRIPT
         for line in process.stderr:
-            log_print(line.rstrip(), level='error')  # LOGUEAR ERRORES
+            log_print(line.rstrip(), level='error')  # IMPRIMIR ERRORES
 
-        process.wait()  # ESPERAR QUE EL SCRIPT TERMINE
+        process.wait()  # ESPERAR A QUE TERMINE EL SCRIPT
         if process.returncode != 0:
             log_print(f"[ ERROR ] {script} TERMINÓ CON CÓDIGO {process.returncode}", level='error')
 
     except Exception as e:
         log_print(f"[ EXCEPCIÓN ] {script}: {e}", level='error')  # CAPTURAR EXCEPCIONES
 
-log_print("\n[ FIN ]")  # MARCAR FIN DE LA EJECUCIÓN
+# LEER VALORES AJUSTADOS FINALES DE HIPERPARÁMETROS
+if os.path.exists(HIP_JSON):
+    with open(HIP_JSON, 'r', encoding='utf-8') as f:
+        final_values = json.load(f)  # CARGAR JSON FINAL
+else:
+    final_values = default_values.copy()  # USAR VALORES POR DEFECTO
+
+# MOSTRAR RESUMEN FINAL DE HIPERPARÁMETROS
+log_print("\n[ RESUMEN HIPERPARÁMETROS ]")
+for param in ['S','T','F','D','Th']:
+    default_val = default_values.get(param, {}).get('default', 'N/A')
+    final_val = final_values.get(param, {}).get('value', 'N/A')
+    log_print(f"{param}: POR DEFECTO = {default_val}   |   AJUSTADO = {final_val}")  # IMPRIMIR RESUMEN
+
+log_print("\n[ FIN ]")  # FIN DE EJECUCIÓN

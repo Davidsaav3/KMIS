@@ -1,6 +1,5 @@
 import pandas as pd
 import numpy as np
-import os
 
 # CONFIGURACIÓN DE PARÁMETROS
 INPUT_CSV = '../../results/preparation/05_variance_recortado.csv'       # ARCHIVO DE ENTRADA DEL DATASET
