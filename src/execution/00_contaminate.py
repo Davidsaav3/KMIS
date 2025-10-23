@@ -4,7 +4,7 @@ import os
 
 # CONFIGURACIÓN DE PARÁMETROS
 INPUT_CSV = '../../results/preparation/05_variance_recortado.csv'       # ARCHIVO DE ENTRADA DEL DATASET
-OUTPUT_CSV = '../../results/execution/01_contaminated.csv'    # ARCHIVO DE SALIDA DEL DATASET CONTAMINADO
+OUTPUT_CSV = '../../results/execution/00_contaminated.csv'    # ARCHIVO DE SALIDA DEL DATASET CONTAMINADO
 RESULTS_FOLDER = '../../results/preparation'                  # CARPETA PARA RESULTADOS INTERMEDIOS
 
 CONTAMINATION_RATE = 0.01

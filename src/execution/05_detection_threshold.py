@@ -1,4 +1,8 @@
 import numpy as np
+import pandas as pd
+
+INPUT_CSV = '../../results/execution/00_contaminated.csv'
+df = pd.read_csv(INPUT_CSV)
 
 def contaminar_dat_5pct(Dat, porcentaje=0.05, incremento=0.5, random_state=None):
     # FIJA SEMILLA PARA REPRODUCIBILIDAD
@@ -61,3 +65,6 @@ def ajustar_umbral(Dat, delta=0.2, Th_min=0.0, Th_max=1.0, grad=0.01, Th=0.5, ra
 
     print(f"[INFO] Umbral de detección ajustado: Th={Th:.4f}")
     return Th
+
+# --- EJECUCIÓN ---
+Th = ajustar_umbral(df, delta=0.2, Th_min=0.0, Th_max=1.0, grad=0.01, Th=0.5, random_state=42)

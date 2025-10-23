@@ -1,6 +1,10 @@
 import numpy as np
+import pandas as pd
 from sklearn.ensemble import IsolationForest
 from sklearn.metrics import f1_score
+
+INPUT_CSV = '../../results/execution/00_contaminated.csv'
+df = pd.read_csv(INPUT_CSV)
 
 def contaminar_dat(Dat, S, porcentaje=0.01, incremento=0.5, random_state=None):
     # FIJA SEMILLA PARA REPRODUCIBILIDAD
@@ -68,3 +72,7 @@ def ajustar_numero_arboles(Dat, S, T_min=5, T_max=100, step=5, N=3, F1sta=0.01, 
     # SI NO SE ESTABILIZA, RETORNA T_MAX
     print(f"[INFO] F1-score no estabilizó. T final = {T_max}")
     return T_max
+
+# --- EJECUCIÓN ---
+S = 200
+T_ajustado = ajustar_numero_arboles(df, S, T_min=5, T_max=100, step=5, N=3, F1sta=0.01, random_state=42)

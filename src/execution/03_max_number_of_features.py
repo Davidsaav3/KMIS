@@ -1,5 +1,9 @@
 import numpy as np
+import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
+
+INPUT_CSV = '../../results/execution/00_contaminated.csv'
+df = pd.read_csv(INPUT_CSV)
 
 def ajustar_numero_caracteristicas(Dat, F_inicial=1.0, α_reduccion=0.5, α_aumento=1.5, random_state=None):
     # FIJA SEMILLA PARA REPRODUCIBILIDAD
@@ -62,3 +66,6 @@ def ajustar_numero_caracteristicas(Dat, F_inicial=1.0, α_reduccion=0.5, α_aume
 
         # AQUÍ SE PODRÍA ACTUALIZAR MODELO IF CON NUEVO F
         # actualizar_modelo_IF(F)  # OPCIONAL
+
+# --- EJECUCIÓN ---
+F = ajustar_numero_caracteristicas(df, F_inicial=1.0, α_reduccion=0.5, α_aumento=1.5, random_state=42)

@@ -1,6 +1,10 @@
 import numpy as np
+import pandas as pd
 from sklearn.ensemble import IsolationForest
 from math import log2
+
+INPUT_CSV = '../../results/execution/00_contaminated.csv'
+df = pd.read_csv(INPUT_CSV)
 
 def contaminar_dat_5pct(Dat, porcentaje=0.05, incremento=0.5, random_state=None):
     # FIJA SEMILLA PARA REPRODUCIBILIDAD
@@ -66,3 +70,7 @@ def ajustar_profundidad_maxima(Dat, S, β=0.2, random_state=None):
         else:
             print(f"[INFO] D ajustado encontrado: {D}")
             return D
+
+# --- EJECUCIÓN ---
+S = 256  # TAMAÑO DE MUESTRA PREVIAMENTE CALCULADO
+D = D_ajustado = ajustar_profundidad_maxima(df, S, β=0.2, random_state=42)
