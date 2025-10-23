@@ -17,10 +17,8 @@ if 'is_anomaly' in df.columns:
 # CONVERTIR COLUMNAS NUMÉRICAS A VECTORIZADO 1D
 Dat_np = df.select_dtypes(include=[np.number]).values.flatten()  # EXTRAER DATOS NUMÉRICOS
 
-# FUNCIONES
-
+# CONTAMINA 5% DEL DATASET CON ANOMALÍAS ARTIFICIALES
 def contaminar_dat_5pct(Dat, porcentaje=0.05, incremento=0.5, random_state=None):
-    """CONTAMINA 5% DEL DATASET CON ANOMALÍAS ARTIFICIALES"""
     np.random.seed(random_state)  # FIJAR SEMILLA ALEATORIA
     S = len(Dat)  # TAMAÑO TOTAL DE DATOS
     n_anom = max(1, int(S * porcentaje))  # CALCULAR NÚMERO DE ANOMALÍAS
@@ -29,8 +27,8 @@ def contaminar_dat_5pct(Dat, porcentaje=0.05, incremento=0.5, random_state=None)
     Dat_contaminado[indices_anom] *= (1 + incremento)  # INCREMENTAR VALORES SELECCIONADOS
     return Dat_contaminado, indices_anom  # DEVOLVER DATOS CONTAMINADOS Y ÍNDICES
 
+# CALCULA FUNCION DE COSTE FC (FP Y FN PONDERADOS)
 def calcular_FC(Dat_cont, indices_anom, Th, delta=0.2):
-    """CALCULA FUNCION DE COSTE FC (FP Y FN PONDERADOS)"""
     pred = np.zeros(len(Dat_cont))  # INICIALIZAR PREDICCIONES
     pred[Dat_cont >= Th] = 1  # MARCAR ANOMALÍAS SEGÚN UMBRAL
     y_true = np.zeros(len(Dat_cont))  # INICIALIZAR VERDADEROS
@@ -40,8 +38,10 @@ def calcular_FC(Dat_cont, indices_anom, Th, delta=0.2):
     FC = delta * FP + (1 - delta) * FN  # PONDERAR FP Y FN
     return FC  # DEVOLVER FC
 
+
+# AJUSTA UMBRAL DE DETECCIÓN USANDO BÚSQUEDA BINARIA SOBRE FC 
 def ajustar_umbral(Dat, delta=0.2, Th_min=0.0, Th_max=1.0, grad=0.01, Th=0.5, random_state=None):
-    """AJUSTA UMBRAL DE DETECCIÓN USANDO BÚSQUEDA BINARIA SOBRE FC"""
+    
     np.random.seed(random_state)  # FIJAR SEMILLA
     Dat_cont, indices_anom = contaminar_dat_5pct(Dat, porcentaje=0.05, incremento=0.5, random_state=random_state)  # CONTAMINAR DATOS
     print(f"[INFO] Dataset contaminado con {len(indices_anom)} anomalías")
@@ -66,9 +66,11 @@ def ajustar_umbral(Dat, delta=0.2, Th_min=0.0, Th_max=1.0, grad=0.01, Th=0.5, ra
     print(f"[INFO] Umbral de detección ajustado: Th={Th:.4f}")
     return Th  # DEVOLVER UMBRAL AJUSTADO
 
-# EJECUCIÓN DEL AJUSTE
+
+# MAIN
 Th_ajustado = ajustar_umbral(Dat_np, delta=0.2, Th_min=0.0, Th_max=1.0, grad=0.01, Th=0.5, random_state=42)
 print(f"[INFO] Umbral final ajustado: Th={Th_ajustado}")
+
 
 # CREAR O ACTUALIZAR JSON DE HIPERPARÁMETROS
 if os.path.exists(HIP_JSON):
@@ -76,7 +78,6 @@ if os.path.exists(HIP_JSON):
         hip_data = json.load(f)  # CARGAR EXISTENTE
 else:
     hip_data = {}  # CREAR NUEVO
-
 # GUARDAR VALOR AJUSTADO DE Th
 hip_data['Th'] = {
     "value": Th_ajustado,
@@ -84,8 +85,7 @@ hip_data['Th'] = {
     "adjustment_method": "Binary search minimizing cost function (FP,FN)",
     "default": 1.0
 }
-
 with open(HIP_JSON, 'w', encoding='utf-8') as f:
     json.dump(hip_data, f, indent=4)  # GUARDAR JSON
 
-print(f"[INFO] hiperparameters.json actualizado con Th={Th_ajustado}")
+print(f"[FIN] hiperparameters.json actualizado con Th={Th_ajustado}")

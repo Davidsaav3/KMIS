@@ -19,9 +19,8 @@ if 'is_anomaly' in df.columns:
 # CONVERTIR COLUMNAS NUMÉRICAS A NUMPY 2D
 Dat_np = df.select_dtypes(include=[np.number]).values  # EXTRAER DATOS NUMÉRICOS
 
-# FUNCIONES
+# CONTAMINA SUBCONJUNTO DEL DATASET CON ANOMALÍAS ARTIFICIALES
 def contaminar_dat(Dat, S, porcentaje=0.01, incremento=0.5, random_state=None):
-    """CONTAMINA SUBCONJUNTO DEL DATASET CON ANOMALÍAS ARTIFICIALES"""
     np.random.seed(random_state)  # FIJAR SEMILLA PARA REPRODUCIBILIDAD
     indices_muestra = np.random.choice(Dat.shape[0], size=S, replace=False)  # SELECCIONAR MUESTRA
     muestra = Dat[indices_muestra, :].copy()  # COPIA DE SUBMUESTRA
@@ -31,8 +30,9 @@ def contaminar_dat(Dat, S, porcentaje=0.01, incremento=0.5, random_state=None):
     muestra[indices_anom, col] *= (1 + incremento)  # APLICAR ANOMALÍAS
     return muestra, indices_anom, indices_muestra  # RETORNAR SUBMUESTRA Y ANOMALÍAS
 
+
+# AJUSTA NÚMERO DE ÁRBOLES SEGÚN ESTABILIDAD DEL F1-SCORE
 def ajustar_numero_arboles(Dat, S, T_min=5, T_max=100, step=5, N=3, F1sta=0.01, random_state=None):
-    """AJUSTA NÚMERO DE ÁRBOLES SEGÚN ESTABILIDAD DEL F1-SCORE"""
     np.random.seed(random_state)  # FIJAR SEMILLA
     # CONTAMINAR SUBMUESTRA
     Dat_cont, indices_anom_real, _ = contaminar_dat(Dat, S, porcentaje=0.01, incremento=0.5, random_state=random_state)
@@ -70,10 +70,12 @@ def ajustar_numero_arboles(Dat, S, T_min=5, T_max=100, step=5, N=3, F1sta=0.01, 
     print(f"[INFO] F1-score no estabilizó. T final = {T_max}")
     return T_max  # RETORNAR T MÁXIMO SI NO SE ESTABILIZA
 
-# EJECUCIÓN DEL AJUSTE
+
+# MAIN
 S = 200  # TAMAÑO DE MUESTRA PARA AJUSTE
 T_ajustado = ajustar_numero_arboles(Dat_np, S, T_min=5, T_max=100, step=5, N=3, F1sta=0.01, random_state=42)
 print(f"[INFO] Número de árboles final ajustado: {T_ajustado}")
+
 
 # CREAR O ACTUALIZAR JSON DE HIPERPARÁMETROS
 if os.path.exists(HIP_JSON):
@@ -81,7 +83,6 @@ if os.path.exists(HIP_JSON):
         hip_data = json.load(f)  # CARGAR JSON EXISTENTE
 else:
     hip_data = {}  # CREAR NUEVO JSON
-
 # GUARDAR VALOR AJUSTADO DE T
 hip_data['T'] = {
     "value": T_ajustado,  # VALOR AJUSTADO
@@ -89,8 +90,7 @@ hip_data['T'] = {
     "adjustment_method": "F1-score stabilization over iterations",  # MÉTODO DE AJUSTE
     "default": 100  # VALOR POR DEFECTO
 }
-
 with open(HIP_JSON, 'w', encoding='utf-8') as f:
     json.dump(hip_data, f, indent=4)  # GUARDAR JSON
 
-print(f"[INFO] hiperparameters.json actualizado con T={T_ajustado}")
+print(f"[FIN] hiperparameters.json actualizado con T={T_ajustado}")

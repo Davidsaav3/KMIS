@@ -18,9 +18,10 @@ if 'is_anomaly' in df.columns:
 # CONVERTIR COLUMNAS NUMÉRICAS A ARRAY NUMPY
 Dat_np = df.select_dtypes(include=[np.number]).values  # EXTRAER SOLO DATOS NUMÉRICOS
 
+
 # FUNCIÓN PARA AJUSTAR F (NÚMERO DE CARACTERÍSTICAS)
 def ajustar_numero_caracteristicas(Dat, F_inicial=1.0, alpha_reduccion=0.5, alpha_aumento=1.5, random_state=None):
-    """AJUSTA EL PARÁMETRO F SEGÚN LA VARIANZA MEDIA DE SUBMUESTRAS"""
+    # AJUSTA EL PARÁMETRO F SEGÚN LA VARIANZA MEDIA DE SUBMUESTRAS
     np.random.seed(random_state)  # FIJAR SEMILLA PARA REPRODUCIBILIDAD
     scaler = MinMaxScaler()
     Dat_norm = scaler.fit_transform(Dat)  # NORMALIZAR DATOS A [0,1]
@@ -38,9 +39,9 @@ def ajustar_numero_caracteristicas(Dat, F_inicial=1.0, alpha_reduccion=0.5, alph
         selected_idx = np.random.choice(num_features, size=n_selected, replace=False)  # SELECCIÓN ALEATORIA DE COLUMNAS
         selected_features = Dat_norm[:, selected_idx]  # EXTRAER SUBMUESTRA
 
-        σ2 = np.var(selected_features, axis=0)  # CALCULAR VARIANZA POR COLUMNA
-        V_prom = np.mean(σ2)  # VARIANZA PROMEDIO
-        Q1, Q2, Q3, Q4 = np.percentile(σ2, [25, 50, 75, 100])  # CALCULAR CUARTILES
+        sigma_2 = np.var(selected_features, axis=0)  # CALCULAR VARIANZA POR COLUMNA
+        V_prom = np.mean(sigma_2)  # VARIANZA PROMEDIO
+        Q1, Q2, Q3, Q4 = np.percentile(sigma_2, [25, 50, 75, 100])  # CALCULAR CUARTILES
         BQ1F = (np.max([Q1]) + np.min([Q2])) / 2  # LÍMITE INFERIOR DE REFERENCIA
         BQ4F = (np.max([Q3]) + np.min([Q4])) / 2  # LÍMITE SUPERIOR DE REFERENCIA
 
@@ -67,9 +68,11 @@ def ajustar_numero_caracteristicas(Dat, F_inicial=1.0, alpha_reduccion=0.5, alph
             print("[INFO] F ajustado encontrado")
             return F
 
-# EJECUCIÓN DEL AJUSTE DE F
+
+# MAIN
 F_ajustado = ajustar_numero_caracteristicas(Dat_np, F_inicial=1.0, alpha_reduccion=0.5, alpha_aumento=1.5, random_state=42)
 print(f"[INFO] Número máximo de características final ajustado: {F_ajustado:.4f}")
+
 
 # ACTUALIZAR O CREAR JSON DE HIPERPARÁMETROS
 if os.path.exists(HIP_JSON):
@@ -77,7 +80,6 @@ if os.path.exists(HIP_JSON):
         hip_data = json.load(f)  # LEER JSON EXISTENTE
 else:
     hip_data = {}  # CREAR NUEVO SI NO EXISTE
-
 # GUARDAR NUEVO VALOR DE F EN JSON
 hip_data['F'] = {
     "value": F_ajustado,  # VALOR FINAL AJUSTADO
@@ -85,9 +87,8 @@ hip_data['F'] = {
     "adjustment_method": "Increment/decrement search based on variance",  # MÉTODO DE AJUSTE
     "default": 1.0  # VALOR POR DEFECTO
 }
-
 # ESCRIBIR JSON ACTUALIZADO
 with open(HIP_JSON, 'w', encoding='utf-8') as f:
     json.dump(hip_data, f, indent=4)  # GUARDAR CON FORMATO
 
-print(f"[INFO] hiperparameters.json actualizado con F={F_ajustado:.4f}")
+print(f"[FIN] hiperparameters.json actualizado con F={F_ajustado:.4f}")

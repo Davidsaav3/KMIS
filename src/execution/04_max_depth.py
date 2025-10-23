@@ -19,9 +19,8 @@ if 'is_anomaly' in df.columns:
 # CONVERTIR DATOS NUMÉRICOS A VECTOR 1D
 Dat_np = df.select_dtypes(include=[np.number]).values.flatten()  # EXTRAER Y APLANAR DATOS NUMÉRICOS
 
-# FUNCIÓN PARA CONTAMINAR DATOS CON ANOMALÍAS ARTIFICIALES
+# CONTAMINA 5% DE LOS DATOS AUMENTANDO SUS VALORES
 def contaminar_dat_5pct(Dat, porcentaje=0.05, incremento=0.5, random_state=None):
-    """CONTAMINA 5% DE LOS DATOS AUMENTANDO SUS VALORES"""
     np.random.seed(random_state)  # FIJAR SEMILLA
     S = len(Dat)  # NÚMERO TOTAL DE ELEMENTOS
     n_anom = max(1, int(S * porcentaje))  # CANTIDAD DE ANOMALÍAS A INTRODUCIR
@@ -30,9 +29,10 @@ def contaminar_dat_5pct(Dat, porcentaje=0.05, incremento=0.5, random_state=None)
     Dat_contaminado[indices_anom] *= (1 + incremento)  # AUMENTAR VALORES SELECCIONADOS
     return Dat_contaminado, indices_anom  # RETORNAR DATOS CONTAMINADOS Y SUS ÍNDICES
 
+
 # FUNCIÓN PARA AJUSTAR EL FACTOR D (PROFUNDIDAD EFECTIVA)
-def ajustar_profundidad_maxima(Dat, S, β=0.2, random_state=None, max_iter=50):
-    """AJUSTA D SEGÚN LA TASA PROMEDIO DE AISLAMIENTO"""
+def ajustar_profundidad_maxima(Dat, S, betha=0.2, random_state=None, max_iter=50):
+    # AJUSTA D SEGÚN LA TASA PROMEDIO DE AISLAMIENTO
     np.random.seed(random_state)  # FIJAR SEMILLA ALEATORIA
     # CONTAMINAR SUBMUESTRA CON ANOMALÍAS
     Dat_cont, indices_anom = contaminar_dat_5pct(Dat[:S], porcentaje=0.05, incremento=0.5, random_state=random_state)
@@ -71,9 +71,9 @@ def ajustar_profundidad_maxima(Dat, S, β=0.2, random_state=None, max_iter=50):
         # AJUSTAR D SEGÚN POSICIÓN DE R EN CUARTILES
         new_D = D
         if R < R_75 and D > D_min:
-            new_D = max(int(D * (1 - β)), D_min)  # REDUCIR PROFUNDIDAD
+            new_D = max(int(D * (1 - betha)), D_min)  # REDUCIR PROFUNDIDAD
         elif R > R_25 and D < D_max:
-            new_D = min(int(D * (1 + β)), D_max)  # AUMENTAR PROFUNDIDAD
+            new_D = min(int(D * (1 + betha)), D_max)  # AUMENTAR PROFUNDIDAD
 
         # DETENER SI D SE ESTABILIZA
         if new_D == D:
@@ -86,10 +86,12 @@ def ajustar_profundidad_maxima(Dat, S, β=0.2, random_state=None, max_iter=50):
     print(f"[WARN] Máximo número de iteraciones alcanzado, factor D final: {D}")
     return D
 
-# EJECUTAR PROCESO DE AJUSTE DE D
+
+# MAIN
 S = 256  # TAMAÑO DE SUBMUESTRA
-D_ajustado = ajustar_profundidad_maxima(Dat_np, S, β=0.2, random_state=42)
+D_ajustado = ajustar_profundidad_maxima(Dat_np, S, betha=0.2, random_state=42)
 print(f"[INFO] Factor D final ajustado: {D_ajustado}")
+
 
 # CARGAR O CREAR JSON DE HIPERPARÁMETROS
 if os.path.exists(HIP_JSON):
@@ -97,7 +99,6 @@ if os.path.exists(HIP_JSON):
         hip_data = json.load(f)  # LEER JSON EXISTENTE
 else:
     hip_data = {}  # CREAR NUEVO SI NO EXISTE
-
 # ACTUALIZAR O AÑADIR VALOR DE D
 hip_data['D'] = {
     "value": D_ajustado,  # VALOR FINAL DE D
@@ -105,9 +106,8 @@ hip_data['D'] = {
     "adjustment_method": "Adjusted using average isolation rate R and quartiles",  # MÉTODO DE AJUSTE
     "default": "log2(S)"  # VALOR POR DEFECTO
 }
-
 # GUARDAR JSON ACTUALIZADO
 with open(HIP_JSON, 'w', encoding='utf-8') as f:
     json.dump(hip_data, f, indent=4)  # ESCRIBIR JSON FORMATEADO
 
-print(f"[INFO] hiperparameters.json actualizado con D={D_ajustado}")
+print(f"[FIN] hiperparameters.json actualizado con D={D_ajustado}")
