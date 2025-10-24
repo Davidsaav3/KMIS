@@ -4,7 +4,7 @@ import json
 import os
 
 # PARÁMETROS DE ENTRADA Y SALIDA
-INPUT_CSV = '../../results/execution/00_contaminated.csv'  # CSV DE DATOS
+INPUT_CSV = '../../results/preparation/05_variance_recortado.csv'  # CSV DE DATOS
 HIP_JSON = '../../results/execution/hiperparameters.json'  # JSON DE HIPERPARÁMETROS
 
 # CARGAR DATASET
@@ -67,9 +67,55 @@ def ajustar_umbral(Dat, delta=0.2, Th_min=0.0, Th_max=1.0, grad=0.01, Th=0.5, ra
     return Th  # DEVOLVER UMBRAL AJUSTADO
 
 
+def ajustar_umbral_optimo(Dat, delta=0.2, Th_min=0.0, Th_max=1.0, grad=0.01, Th=0.5, reps=5, random_state=None):
+    np.random.seed(random_state)
+    Dat_cont, indices_anom = contaminar_dat_5pct(Dat, porcentaje=0.05, incremento=0.5, random_state=random_state)
+    print(f"[INFO] Dataset contaminado con {len(indices_anom)} anomalías")
+
+    stable_count = 0
+    last_FC = None
+
+    while Th_max - Th_min >= grad:
+        mid1 = (Th + Th_min) / 2
+        mid2 = (Th_max + Th) / 2
+
+        # CAMBIO: promedio FC sobre varias repeticiones para mayor estabilidad
+        FC1_list = [calcular_FC(Dat_cont, indices_anom, mid1, delta) for _ in range(reps)]
+        FC2_list = [calcular_FC(Dat_cont, indices_anom, mid2, delta) for _ in range(reps)]
+        FC1 = np.mean(FC1_list)  # Promedio FC1
+        FC2 = np.mean(FC2_list)  # Promedio FC2
+
+        print(f"[INFO] Th={Th:.4f}, mid1={mid1:.4f}, FC1={FC1:.4f}, mid2={mid2:.4f}, FC2={FC2:.4f}")
+
+        if FC1 < FC2:
+            Th_max = Th
+            Th = mid1
+        else:
+            Th_min = Th
+            Th = mid2
+
+        # CAMBIO: criterio de convergencia basado en cambio mínimo de FC
+        current_FC = min(FC1, FC2)
+        if last_FC is not None and abs(current_FC - last_FC) < 0.001:
+            stable_count += 1
+            if stable_count >= 3:  # 3 iteraciones estables
+                print(f"[INFO] Convergencia alcanzada. Th final: {Th:.4f}")
+                return Th
+        else:
+            stable_count = 0
+        last_FC = current_FC
+
+        # CAMBIO: reducir grad dinámicamente si no converge
+        grad = max(grad * 0.9, 0.0001)
+
+    print(f"[INFO] Umbral de detección ajustado: Th={Th:.4f}")
+    return Th
+
+
 # MAIN
-Th_ajustado = ajustar_umbral(Dat_np, delta=0.2, Th_min=0.0, Th_max=1.0, grad=0.01, Th=0.5, random_state=42)
-print(f"[INFO] Umbral final ajustado: Th={Th_ajustado}")
+# Th_ajustado = ajustar_umbral(Dat_np, delta=0.2, Th_min=0.0, Th_max=1.0, grad=0.01, Th=0.5, random_state=42)
+Th_ajustado = ajustar_umbral_optimo(Dat_np, delta=0.2, Th_min=0.0, Th_max=1.0, grad=0.01, Th=0.5, reps=5, random_state=42)
+print(f"[FIN] hiperparameters.json actualizado con Th={Th_ajustado}")
 
 
 # CREAR O ACTUALIZAR JSON DE HIPERPARÁMETROS
@@ -87,5 +133,3 @@ hip_data['Th'] = {
 }
 with open(HIP_JSON, 'w', encoding='utf-8') as f:
     json.dump(hip_data, f, indent=4)  # GUARDAR JSON
-
-print(f"[FIN] hiperparameters.json actualizado con Th={Th_ajustado}")

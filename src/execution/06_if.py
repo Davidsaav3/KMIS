@@ -4,6 +4,7 @@ from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
 import os
 import json
+import math
 
 # DEFINIR RUTAS DE ENTRADA Y SALIDA
 RESULTS_FOLDER = '../../results'                          # CARPETA PRINCIPAL DE RESULTADOS
@@ -59,15 +60,36 @@ df_num = df_input[num_cols]
 scaler = StandardScaler()
 df_scaled = scaler.fit_transform(df_num)
 
+
+# Entrenar un IF temporal solo para obtener los scores
+temp_if = IsolationForest(contamination='auto', random_state=42)
+temp_if.fit(df_scaled)
+# Obtener puntuaciones de anomalía
+scores = temp_if.score_samples(df_scaled)  # más bajo = más anómalo
+# Calcular fracción de registros bajo el umbral → contamination equivalente
+# NOTA: ajustamos el signo porque score_samples devuelve valores negativos para anomalías
+contamination = np.mean(-scores >= Th)
+contamination = min(contamination, 0.5)  # max permitido por IF
+print(f"[INFO] Contamination equivalente a Th={Th}: {contamination:.4f}")
+
+# INTEGRAR D EN MAX SAMPLES S
+print(f"[INFO] S: {S}")
+D_max = int(math.log2(S))
+max_samples = max(1, int(S * D / D_max)) # reduce el número de muestras por árbol para que la profundidad efectiva sea aproximadamente D
+print(f"[INFO] max_samples: {max_samples}")
+
+
 # CONFIGURAR Y ENTRENAR ISOLATION FOREST
 clf_params = {
     "n_estimators": T,
-    "max_samples": S,
-    "contamination": Th,
+    "max_samples": max_samples,
+    "contamination": contamination,
     "max_features": F,
-    "random_state": RANDOM_STATE,
+    "random_state": RANDOM_STATE, 
     "n_jobs": -1
 }
+# Scikit-learn calcula automáticamente la profundidad de los árboles hasta log2(max_samples) o hasta que se cumpla la condición de aislamiento de nodos.
+
 clf = IsolationForest(**clf_params)
 clf.fit(df_scaled)  # ENTRENAR MODELO
 
