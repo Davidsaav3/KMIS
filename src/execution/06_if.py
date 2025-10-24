@@ -62,15 +62,15 @@ df_scaled = scaler.fit_transform(df_num)
 
 
 # Entrenar un IF temporal solo para obtener los scores
-temp_if = IsolationForest(contamination='auto', random_state=42)
-temp_if.fit(df_scaled)
+# temp_if = IsolationForest(contamination='auto', random_state=42)
+# temp_if.fit(df_scaled)
 # Obtener puntuaciones de anomalía
-scores = temp_if.score_samples(df_scaled)  # más bajo = más anómalo
+# scores = temp_if.score_samples(df_scaled)  # más bajo = más anómalo
 # Calcular fracción de registros bajo el umbral → contamination equivalente
 # NOTA: ajustamos el signo porque score_samples devuelve valores negativos para anomalías
-contamination = np.mean(-scores >= Th)
-contamination = min(contamination, 0.5)  # max permitido por IF
-print(f"[INFO] Contamination equivalente a Th={Th}: {contamination:.4f}")
+#contamination = np.mean(-scores >= Th)
+#contamination = min(contamination, 0.5)  # max permitido por IF
+#print(f"[INFO] Contamination equivalente a Th={Th}: {contamination:.4f}")
 
 # INTEGRAR D EN MAX SAMPLES S
 print(f"[INFO] S: {S}")
@@ -83,7 +83,7 @@ print(f"[INFO] max_samples: {max_samples}")
 clf_params = {
     "n_estimators": T,
     "max_samples": max_samples,
-    "contamination": contamination,
+    "contamination": 0.01,
     "max_features": F,
     "random_state": RANDOM_STATE, 
     "n_jobs": -1

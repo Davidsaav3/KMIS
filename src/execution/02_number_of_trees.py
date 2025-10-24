@@ -144,7 +144,7 @@ else:
 # MAIN
 # T_ajustado = ajustar_numero_arboles(Dat_np, S, T_min=5, T_max=100, step=5, N=3, F1sta=0.01, random_state=42)
 # T_ajustado = ajustar_numero_arboles(Dat_np, S, T_min=5, T_max=100, step=1, N=5, F1sta=0.005, random_state=42)
-T_ajustado = ajustar_numero_arboles_optimo(Dat_np, S, T_min=5, T_max=100, step=1, N=5, delta=0.001, random_state=42)
+T_ajustado = ajustar_numero_arboles_optimo(Dat_np, S, T_min=50, T_max=100, step=1, N=3, delta=0.001, random_state=42)
 print(f"[FIN] hiperparameters.json actualizado con T={T_ajustado}")
 
 
