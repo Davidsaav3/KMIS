@@ -33,7 +33,7 @@ else:
 S = hip_data.get('S', {}).get('value', 'auto')  # TAMAÑO DE MUESTRA POR ÁRBOL
 T = hip_data.get('T', {}).get('value', 100)     # NÚMERO DE ÁRBOLES
 F = hip_data.get('F', {}).get('value', 1.0)     # MÁXIMO DE CARACTERÍSTICAS POR ÁRBOL
-D = hip_data.get('D', {}).get('value', None)    # PROFUNDIDAD MÁXIMA
+D = hip_data.get('D', {}).get('value', 1.0)    # PROFUNDIDAD MÁXIMA
 Th = hip_data.get('Th', {}).get('value', 0.01)  # UMBRAL DE DETECCIÓN
 
 if SHOW_INFO:
@@ -83,7 +83,7 @@ print(f"[INFO] max_samples: {max_samples}")
 clf_params = {
     "n_estimators": T,
     "max_samples": max_samples,
-    "contamination": 0.01,
+    "contamination": Th,
     "max_features": F,
     "random_state": RANDOM_STATE, 
     "n_jobs": -1

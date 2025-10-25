@@ -19,7 +19,7 @@ if 'is_anomaly' in df.columns:
 Dat_np = df.select_dtypes(include=[np.number]).values  # EXTRAER SOLO DATOS NUMÉRICOS
 
 
-# FUNCIÓN PARA AJUSTAR F (NÚMERO DE CARACTERÍSTICAS)
+# [ MAIN ]
 def ajustar_numero_caracteristicas(Dat, F_inicial=1.0, alpha_reduccion=0.5, alpha_aumento=1.5, random_state=None):
     # AJUSTA EL PARÁMETRO F SEGÚN LA VARIANZA MEDIA DE SUBMUESTRAS
     np.random.seed(random_state)  # FIJAR SEMILLA PARA REPRODUCIBILIDAD
@@ -69,70 +69,71 @@ def ajustar_numero_caracteristicas(Dat, F_inicial=1.0, alpha_reduccion=0.5, alph
             return F
         
 
-# FUNCIÓN PARA AJUSTAR F (NÚMERO DE CARACTERÍSTICAS) AGRESIVA
-def ajustar_numero_caracteristicas_optimo(Dat, F_inicial=1.0, alpha_reduccion=0.9, alpha_aumento=1.05, reps=5, F_min=0.1, random_state=None):
-    """
-    Ajusta el número máximo de características por árbol (F) de Isolation Forest.
-    Versión agresiva que fuerza reducción de F incluso si varianza está dentro del rango.
-    """
-    import numpy as np  # IMPORTAR Numpy
-    from sklearn.preprocessing import MinMaxScaler  # IMPORTAR escalador
+# [ MAIN MEJORADO ]
+def ajustar_numero_caracteristicas_mejorado(Dat, F_inicial=1.0, alpha_reduccion=0.9, alpha_aumento=1.05, reps=5, F_min=0.1, random_state=None):
+    import numpy as np  # [ CAMBIO ] importar dentro de la función
+    from sklearn.preprocessing import MinMaxScaler  # [ CAMBIO ] importar dentro de la función
 
     np.random.seed(random_state)  # FIJAR SEMILLA para reproducibilidad
     scaler = MinMaxScaler()  # CREAR escalador MinMax
     Dat_norm = scaler.fit_transform(Dat)  # NORMALIZAR datos a rango [0,1]
-    print("[INFO] Dataset normalizado a rango [0,1]")  # INFO
+    print("[INFO] Dataset normalizado a rango [0,1]")
 
     num_features = Dat.shape[1]  # OBTENER número de columnas
     F_max = 1.0  # DEFINIR valor máximo de F
-    F = F_inicial  # ASIGNAR valor inicial de F
-    print(f"[INFO] F inicial: {F:.4f}")  # INFO
+    F_min = max(F_min, 1.0 / num_features)  # [ CAMBIO ] mínimo absoluto >= 1/num_features
+    F = min(F_inicial, F_max)  # [ CAMBIO ] no superar F_max al iniciar
+    print(f"[INFO] F inicial: {F:.4f}")
 
-    max_iter = 50  # MÁXIMO de iteraciones para evitar bucle infinito
-    iter_count = 0  # CONTADOR de iteraciones
+    max_iter = 50  # [ CAMBIO ] límite de iteraciones para evitar bucle infinito
+    iter_count = 0  # [ CAMBIO ] contador de iteraciones
 
-    while iter_count < max_iter:  # BUCLE principal
-        iter_count += 1  # AUMENTAR contador
-        V_prom_list = []  # LISTA para varianzas de submuestras
+    while iter_count < max_iter:  # [ CAMBIO ] bucle controlado por max_iter
+        iter_count += 1
+        V_prom_list = []  # [ CAMBIO ] lista para promediar varianzas de varias submuestras
 
-        for r in range(reps):  # REPETIR varias submuestras
+        for r in range(reps):  # [ CAMBIO ] repetir varias submuestras para estabilidad
             n_selected = max(1, int(F * num_features))  # NÚMERO de características seleccionadas
-            selected_idx = np.random.choice(num_features, size=n_selected, replace=False)  # INDICES aleatorios
-            selected_features = Dat_norm[:, selected_idx]  # EXTRAER submuestra
-            V_prom_list.append(np.mean(np.var(selected_features, axis=0)))  # VARIANZA promedio de submuestra
+            selected_idx = np.random.choice(num_features, size=n_selected, replace=False)
+            selected_features = Dat_norm[:, selected_idx]
+            V_prom_list.append(np.mean(np.var(selected_features, axis=0)))  # [ CAMBIO ] almacenar varianza promedio de submuestra
 
-        V_prom = np.mean(V_prom_list)  # PROMEDIO de todas las reps
+        V_prom = np.mean(V_prom_list)  # [ CAMBIO ] promedio de todas las repeticiones
+        sigma_2_full = np.var(Dat_norm, axis=0)
+        Q1, Q2, Q3, Q4 = np.percentile(sigma_2_full, [25, 50, 75, 100])
+        BQ1F = (Q1 + Q2) / 2
+        BQ4F = (Q3 + Q4) / 2
 
-        sigma_2_full = np.var(Dat_norm, axis=0)  # VARIANZA por columna original
-        Q1, Q2, Q3, Q4 = np.percentile(sigma_2_full, [25, 50, 75, 100])  # CUARTILES
-        BQ1F = (Q1 + Q2) / 2  # LÍMITE inferior referencia
-        BQ4F = (Q3 + Q4) / 2  # LÍMITE superior referencia
+        print(f"[INFO] Iter {iter_count}: V_prom={V_prom:.4f}, BQ1F={BQ1F:.4f}, BQ4F={BQ4F:.4f}, F={F:.4f}")
 
-        print(f"[INFO] Iter {iter_count}: V_prom={V_prom:.4f}, BQ1F={BQ1F:.4f}, BQ4F={BQ4F:.4f}, F={F:.4f}")  # INFO
+        # [ CAMBIO ] Reducción agresiva de F incluso si varianza está dentro del rango
+        F_new = max(F * alpha_reduccion, F_min)
+        F_new = min(F_new, F_max)  # [ CAMBIO ] no superar F_max
+        if F_new == F:
+            print("[INFO] F alcanzó F_min o F_max, se retorna F")
+            break
+        F = F_new
+        print(f"[INFO] Reducción agresiva de F a {F:.4f}")
 
-        F_new = max(F * alpha_reduccion, F_min)  # REDUCCIÓN agresiva de F, no menor que F_min
-        if F_new == F:  # CONVERGENCIA si no cambia
-            print("[INFO] F alcanzó F_min, se retorna F")  # INFO
-            break  # SALIR
-        F = F_new  # ACTUAzLIZAR F
-        print(f"[INFO] Reducción agresiva de F a {F:.4f}")  # INFO
+        # [ CAMBIO ] Aumento ligero de F si varianza demasiado baja
+        if V_prom < BQ1F:
+            F = min(F * alpha_aumento, F_max)
+            print(f"[INFO] Ajuste aumento F a {F:.4f} por varianza baja")
 
-        if V_prom < BQ1F:  # SI varianza demasiado baja
-            F = min(F * alpha_aumento, F_max)  # AUMENTAR F ligeramente
-            print(f"[INFO] Ajuste aumento F a {F:.4f} por varianza baja")  # INFO
+        # [ CAMBIO ] condición de parada si F está cerca del mínimo
+        if F <= F_min + 0.01:
+            print("[INFO] F cerca de F_min, finalizando ajuste")
+            break
 
-        if F <= F_min + 0.01:  # SI cerca del mínimo
-            print("[INFO] F cerca de F_min, finalizando ajuste")  # INFO
-            break  # SALIDA
-
-    print("[INFO] F ajustado encontrado")  # INFO final
-    return F  # RETORNAR F ajustado
+    print("[INFO] F ajustado encontrado")
+    return F
 
 
-# MAIN
-F_ajustado = ajustar_numero_caracteristicas(Dat_np, F_inicial=1.0, alpha_reduccion=0.5, alpha_aumento=1.5, random_state=42)
-# F_ajustado = ajustar_numero_caracteristicas_optimo(Dat_np, F_inicial=1.0, alpha_reduccion=0.5, alpha_aumento=1.5, reps=5, random_state=42)
-# F_ajustado = ajustar_numero_caracteristicas_optimo(Dat_np, F_inicial=1.0, alpha_reduccion=0.8, alpha_aumento=1.2, reps=10, random_state=42)
+# CALLS
+# F_ajustado = ajustar_numero_caracteristicas(Dat_np, F_inicial=1.0, alpha_reduccion=0.5, alpha_aumento=1.5, random_state=42) # Original
+# F_ajustado = ajustar_numero_caracteristicas_mejorado(Dat_np, F_inicial=1.0, alpha_reduccion=0.5, alpha_aumento=1.5, reps=5, random_state=42) # Ajustado
+# def ajustar_numero_caracteristicas_mejorado(Dat, F_inicial=1.0, alpha_reduccion=0.9, alpha_aumento=1.05, reps=5, F_min=0.1, random_state=None)
+F_ajustado = ajustar_numero_caracteristicas_mejorado(Dat_np, F_inicial=1.0, alpha_reduccion=0.98, alpha_aumento=1.3, reps=10, F_min=0.25, random_state=42 )
 print(f"[FIN] hiperparameters.json actualizado con F={F_ajustado:.4f}")
 
 

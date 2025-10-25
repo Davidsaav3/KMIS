@@ -18,7 +18,7 @@ if 'is_anomaly' in df.columns:
 data = df.select_dtypes(include=[np.number]).values.flatten()  # EXTRAER Y APLANAR DATOS NUMÉRICOS
 
 
-# AJUSTA EL TAMAÑO DE MUESTRA HASTA IGUALAR LA DESVIACIÓN ESTANDAR DEL CONJUNTO COMPLETO
+# [ MAIN ]
 def ajustar_tamano_muestra(Dat, S_inicial=256, e_sigma=0.05, IncDat=0.1, random_state=None):
     np.random.seed(random_state)  # FIJAR SEMILLA PARA REPRODUCIBILIDAD
     S = S_inicial
@@ -44,26 +44,32 @@ def ajustar_tamano_muestra(Dat, S_inicial=256, e_sigma=0.05, IncDat=0.1, random_
     return S  # RETORNAR TAMAÑO DE MUESTRA AJUSTADO
 
 
-def ajustar_tamano_muestra_optimo(Dat, S_inicial=40, e_sigma=0.01, IncDat=0.05, reps=10, random_state=None):
+# [ MAIN MEJORADO ]
+def ajustar_tamano_muestra_mejorado(Dat, S_inicial=40, e_sigma=0.01, IncDat=0.05, reps=10, random_state=None):
     np.random.seed(random_state)  # FIJAR SEMILLA PARA REPRODUCIBILIDAD
     S = S_inicial  # INICIALIZAR TAMAÑO DE MUESTRA
     print(f"[INFO] Tamaño inicial de muestra: {S}")
 
     sigma_obj = np.std(Dat)  # DESVIACIÓN ESTANDAR DEL CONJUNTO COMPLETO
+    # [ CAMBIO ] En la versión anterior era sigma_o, calculado igual, pero no se usaba promedio de submuestras.
 
-    # calcular desviación promedio de varias submuestras (promedia para mayor estabilidad)
+    # [ CAMBIO ] Nueva función interna para calcular desviación promedio de varias submuestras
+    # Esto mejora la estabilidad frente a la variabilidad aleatoria.
     def sigma_promedio(S):
-        muestras = [np.random.choice(Dat, size=S, replace=False) for _ in range(reps)]  # GENERAR VARIAS SUBMUESTRAS
-        return np.mean([np.std(m) for m in muestras])  # PROMEDIO DE DESVIACIONES
+        muestras = [np.random.choice(Dat, size=S, replace=False) for _ in range(reps)]  # [ CAMBIO ] varias submuestras
+        return np.mean([np.std(m) for m in muestras])  # [ CAMBIO ] promedio de desviaciones en vez de una sola muestra
 
-    sigma_muestra = sigma_promedio(S)  # CALCULAR DESVIACIÓN PROMEDIO INICIAL
+    sigma_muestra = sigma_promedio(S)  # [ CAMBIO ] Cálculo más robusto de la desviación inicial
     print(f"[INFO] Desviación promedio de la muestra inicial: {sigma_muestra:.4f}")
 
-    # incrementar tamaño de muestra hasta aproximar sigma_obj
+    # [ CAMBIO ] Bucle optimizado: incremento dinámico según diferencia entre sigma_obj y sigma_muestra
     while S < len(Dat) and not (sigma_obj - e_sigma <= sigma_muestra <= sigma_obj + e_sigma):
-        incremento = max(1, int(S * IncDat * abs(sigma_obj - sigma_muestra) / sigma_obj))  # AJUSTE DINÁMICO SEGÚN DIFERENCIA, mínimo 1
+        incremento = max(1, int(S * IncDat * abs(sigma_obj - sigma_muestra) / sigma_obj))  
+        # [ CAMBIO ] incremento variable, ajustado proporcionalmente al error relativo de sigma
+        
         S = min(S + incremento, len(Dat))  # ACTUALIZAR TAMAÑO DE MUESTRA SIN SUPERAR TOTAL
-        sigma_muestra = sigma_promedio(S)  # RE-CALCULAR DESVIACIÓN PROMEDIO CON NUEVO S
+        sigma_muestra = sigma_promedio(S)  # [ CAMBIO ] recalcular con promedio en lugar de una sola muestra
+
         print(f"[INFO] Incrementando tamaño de muestra a: {S}")  # INFORMAR NUEVO TAMAÑO
         print(f"[INFO] Desviación promedio de la nueva muestra: {sigma_muestra:.4f}")  # INFORMAR NUEVA DESVIACIÓN
 
@@ -71,10 +77,10 @@ def ajustar_tamano_muestra_optimo(Dat, S_inicial=40, e_sigma=0.01, IncDat=0.05, 
     return S  # RETORNAR TAMAÑO DE MUESTRA AJUSTADO
 
 
-# MAIN
-# S_ajustado = ajustar_tamano_muestra(data, S_inicial=256, e_sigma=0.05, IncDat=0.1, random_state=42)
-# S_ajustado = ajustar_tamano_muestra(data, S_inicial=40, e_sigma=0.01, IncDat=0.05, random_state=42)
-S_ajustado = ajustar_tamano_muestra_optimo(data, S_inicial=40, e_sigma=0.01, IncDat=0.05, reps=10, random_state=42)
+# CALL
+# S_ajustado = ajustar_tamano_muestra(data, S_inicial=256, e_sigma=0.05, IncDat=0.1, random_state=42) # Original
+# S_ajustado = ajustar_tamano_muestra(data, S_inicial=40, e_sigma=0.01, IncDat=0.05, random_state=42) # Ajustado
+S_ajustado = ajustar_tamano_muestra_mejorado(data, S_inicial=40, e_sigma=0.01, IncDat=0.05, reps=10, random_state=42) # Propuesto
 print(f"[FIN] hiperparameters.json actualizado con S={S_ajustado}")
 
 # LEER O CREAR JSON DE HIPERPARÁMETROS

@@ -39,7 +39,7 @@ def calcular_FC(Dat_cont, indices_anom, Th, delta=0.2):
     return FC  # DEVOLVER FC
 
 
-# AJUSTA UMBRAL DE DETECCIÓN USANDO BÚSQUEDA BINARIA SOBRE FC 
+# [ MAIN ]
 def ajustar_umbral(Dat, delta=0.2, Th_min=0.0, Th_max=1.0, grad=0.01, Th=0.5, random_state=None):
     
     np.random.seed(random_state)  # FIJAR SEMILLA
@@ -67,54 +67,49 @@ def ajustar_umbral(Dat, delta=0.2, Th_min=0.0, Th_max=1.0, grad=0.01, Th=0.5, ra
     return Th  # DEVOLVER UMBRAL AJUSTADO
 
 
-def ajustar_umbral_optimo(Dat, delta=0.2, Th_min=0.0, Th_max=1.0, grad=0.01, Th=0.5, reps=5, random_state=None):
+# [ MAIN MEJORADO ]
+# [ MAIN ]
+def ajustar_umbral_mejorado(Dat, delta=0.2, grad=0.01, Th_min=0.0, Th_max=1.0, Th=0.5, random_state=None):
+    # Estima el porcentaje de anomalías en un dataset usando búsqueda binaria
+    # sobre el umbral, siguiendo el mismo procedimiento que ajustar_umbral
     np.random.seed(random_state)
-    Dat_cont, indices_anom = contaminar_dat_5pct(Dat, porcentaje=0.05, incremento=0.5, random_state=random_state)
-    print(f"[INFO] Dataset contaminado con {len(indices_anom)} anomalías")
-
-    stable_count = 0
-    last_FC = None
 
     while Th_max - Th_min >= grad:
         mid1 = (Th + Th_min) / 2
         mid2 = (Th_max + Th) / 2
 
-        # CAMBIO: promedio FC sobre varias repeticiones para mayor estabilidad
-        FC1_list = [calcular_FC(Dat_cont, indices_anom, mid1, delta) for _ in range(reps)]
-        FC2_list = [calcular_FC(Dat_cont, indices_anom, mid2, delta) for _ in range(reps)]
-        FC1 = np.mean(FC1_list)  # Promedio FC1
-        FC2 = np.mean(FC2_list)  # Promedio FC2
+        # Calculamos la proporción de datos sobre el umbral
+        pct1 = np.mean(Dat > mid1)
+        pct2 = np.mean(Dat > mid2)
 
-        print(f"[INFO] Th={Th:.4f}, mid1={mid1:.4f}, FC1={FC1:.4f}, mid2={mid2:.4f}, FC2={FC2:.4f}")
+        print(f"[INFO] Th={Th:.4f}, mid1={mid1:.4f}, pct1={pct1:.4f}, mid2={mid2:.4f}, pct2={pct2:.4f}")
 
-        if FC1 < FC2:
+        # Elegimos la mitad donde la proporción cambia más suavemente (imitando la búsqueda binaria original)
+        if pct1 < pct2:
             Th_max = Th
             Th = mid1
         else:
             Th_min = Th
             Th = mid2
 
-        # CAMBIO: criterio de convergencia basado en cambio mínimo de FC
-        current_FC = min(FC1, FC2)
-        if last_FC is not None and abs(current_FC - last_FC) < 0.001:
-            stable_count += 1
-            if stable_count >= 3:  # 3 iteraciones estables
-                print(f"[INFO] Convergencia alcanzada. Th final: {Th:.4f}")
-                return Th
-        else:
-            stable_count = 0
-        last_FC = current_FC
+    porcentaje_estimado = np.mean(Dat > Th)
+    print(f"[INFO] Porcentaje estimado de anomalías: {porcentaje_estimado:.4f}, Umbral de referencia: {Th:.4f}")
 
-        # CAMBIO: reducir grad dinámicamente si no converge
-        grad = max(grad * 0.9, 0.0001)
-
-    print(f"[INFO] Umbral de detección ajustado: Th={Th:.4f}")
-    return Th
+    return porcentaje_estimado, Th
 
 
-# MAIN
-# Th_ajustado = ajustar_umbral(Dat_np, delta=0.2, Th_min=0.0, Th_max=1.0, grad=0.01, Th=0.5, random_state=42)
-Th_ajustado = ajustar_umbral_optimo(Dat_np, delta=0.2, Th_min=0.0, Th_max=1.0, grad=0.01, Th=0.5, reps=5, random_state=42)
+# CALL
+# Th_ajustado = ajustar_umbral(Dat_np, delta=0.2, Th_min=0.0, Th_max=1.0, grad=0.01, Th=0.5, random_state=42) # Original
+# Th_ajustado = ajustar_umbral(Dat_np, delta=0.2, Th_min=0.0, Th_max=1.0, grad=0.01, Th=0.5, random_state=42) # Ajustado
+Th_ajustado, Th_referencia = ajustar_umbral_mejorado(
+    Dat_np,
+    delta=0.2,
+    grad=0.001,       # precisión de la búsqueda binaria
+    Th_min=0.0,
+    Th_max=1.0,
+    Th=0.5,
+    random_state=42
+)
 print(f"[FIN] hiperparameters.json actualizado con Th={Th_ajustado}")
 
 
