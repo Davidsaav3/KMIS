@@ -78,10 +78,18 @@ def ajustar_tamano_muestra_mejorado(Dat, S_inicial=40, e_sigma=0.01, IncDat=0.05
 
 
 # CALL
+# data → Dataset base sobre el que se calcula el tamaño óptimo de muestra.
+# S_inicial → Tamaño de muestra inicial que actúa como punto de partida en el proceso de ajuste.
+# e_sigma → Error o tolerancia de convergencia; indica cuándo detener el ajuste (menor valor = mayor precisión).
+# IncDat → Porcentaje de contaminación o perturbación introducida en cada iteración para medir estabilidad.
+# reps → Número de repeticiones por iteración para obtener resultados más estables y menos dependientes del azar.
+# random_state → Semilla aleatoria que garantiza la reproducibilidad del ajuste.
+
 # S_ajustado = ajustar_tamano_muestra(data, S_inicial=256, e_sigma=0.05, IncDat=0.1, random_state=42) # Original
 # S_ajustado = ajustar_tamano_muestra(data, S_inicial=40, e_sigma=0.01, IncDat=0.05, random_state=42) # Ajustado
 S_ajustado = ajustar_tamano_muestra_mejorado(data, S_inicial=40, e_sigma=0.01, IncDat=0.05, reps=10, random_state=42) # Propuesto
 print(f"[FIN] hiperparameters.json actualizado con S={S_ajustado}")
+
 
 # LEER O CREAR JSON DE HIPERPARÁMETROS
 if os.path.exists(HIP_JSON):

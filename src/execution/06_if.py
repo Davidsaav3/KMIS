@@ -52,50 +52,29 @@ else:
     df_input = df.copy()
     is_anomaly_column = pd.Series([0]*len(df_input), name='is_anomaly')  # COLUMNA DEFAULT
 
-# SELECCIONAR SOLO COLUMNAS NUMÉRICAS
-num_cols = df_input.select_dtypes(include=['int64', 'float64']).columns.tolist()
-df_num = df_input[num_cols]
-
-# ESCALAR DATOS
-scaler = StandardScaler()
-df_scaled = scaler.fit_transform(df_num)
-
-
-# Entrenar un IF temporal solo para obtener los scores
-# temp_if = IsolationForest(contamination='auto', random_state=42)
-# temp_if.fit(df_scaled)
-# Obtener puntuaciones de anomalía
-# scores = temp_if.score_samples(df_scaled)  # más bajo = más anómalo
-# Calcular fracción de registros bajo el umbral → contamination equivalente
-# NOTA: ajustamos el signo porque score_samples devuelve valores negativos para anomalías
-#contamination = np.mean(-scores >= Th)
-#contamination = min(contamination, 0.5)  # max permitido por IF
-#print(f"[INFO] Contamination equivalente a Th={Th}: {contamination:.4f}")
-
 # INTEGRAR D EN MAX SAMPLES S
+# Scikit-learn calcula automáticamente la profundidad de los árboles hasta log2(max_samples) o hasta que se cumpla la condición de aislamiento de nodos.
 print(f"[INFO] S: {S}")
-D_max = int(math.log2(S))
-max_samples = max(1, int(S * D / D_max)) # reduce el número de muestras por árbol para que la profundidad efectiva sea aproximadamente D
-print(f"[INFO] max_samples: {max_samples}")
-
+# D_max = int(math.log2(S))
+# max_samples = max(1, int(S * D / D_max)) # reduce el número de muestras por árbol para que la profundidad efectiva sea aproximadamente D
+# print(f"[INFO] max_samples: {max_samples}")
 
 # CONFIGURAR Y ENTRENAR ISOLATION FOREST
 clf_params = {
     "n_estimators": T,
-    "max_samples": max_samples,
+    "max_samples": S,
     "contamination": Th,
     "max_features": F,
     "random_state": RANDOM_STATE, 
     "n_jobs": -1
 }
-# Scikit-learn calcula automáticamente la profundidad de los árboles hasta log2(max_samples) o hasta que se cumpla la condición de aislamiento de nodos.
 
 clf = IsolationForest(**clf_params)
-clf.fit(df_scaled)  # ENTRENAR MODELO
+clf.fit(df_input)  # ENTRENAR MODELO
 
 # CALCULAR SCORE Y PREDICCIÓN DE ANOMALÍAS
-anomaly_score = clf.decision_function(df_scaled) * -1  # SCORE: MÁS ALTO = MÁS ANÓMALO
-pred = clf.predict(df_scaled)                           # PREDICCIÓN: 1=NORMAL, -1=ANOMALÍA
+anomaly_score = clf.decision_function(df_input) * -1  # SCORE: MÁS ALTO = MÁS ANÓMALO
+pred = clf.predict(df_input)                           # PREDICCIÓN: 1=NORMAL, -1=ANOMALÍA
 df['anomaly'] = np.where(pred == 1, 0, 1)              # CREAR COLUMNA ANOMALÍAS
 df['anomaly_score'] = anomaly_score                    # AÑADIR SCORE
 df['is_anomaly'] = is_anomaly_column                   # RESTAURAR COLUMNA ORIGINAL

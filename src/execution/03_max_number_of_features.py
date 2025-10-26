@@ -130,6 +130,14 @@ def ajustar_numero_caracteristicas_mejorado(Dat, F_inicial=1.0, alpha_reduccion=
 
 
 # CALLS
+# Dat_np → Dataset de entrada en formato NumPy sobre el que se ajusta el número de características.
+# F_inicial → Valor inicial del número relativo de características a utilizar (punto de partida del ajuste).
+# alpha_reduccion → Factor de reducción aplicado cuando la configuración no mejora (controla la disminución gradual de características).
+# alpha_aumento → Factor de aumento aplicado cuando la configuración mejora (controla el incremento de características).
+# reps → Número de repeticiones por iteración para promediar resultados y reducir variabilidad aleatoria.
+# F_min → Número mínimo de características permitido durante el ajuste.
+# random_state → Semilla aleatoria que garantiza la reproducibilidad del procedimiento.
+
 # F_ajustado = ajustar_numero_caracteristicas(Dat_np, F_inicial=1.0, alpha_reduccion=0.5, alpha_aumento=1.5, random_state=42) # Original
 # F_ajustado = ajustar_numero_caracteristicas_mejorado(Dat_np, F_inicial=1.0, alpha_reduccion=0.5, alpha_aumento=1.5, reps=5, random_state=42) # Ajustado
 # def ajustar_numero_caracteristicas_mejorado(Dat, F_inicial=1.0, alpha_reduccion=0.9, alpha_aumento=1.05, reps=5, F_min=0.1, random_state=None)

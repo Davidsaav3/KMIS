@@ -143,6 +143,15 @@ else:
 
 
 # CALL
+# Dat_np → Dataset de entrada en formato NumPy utilizado para entrenar y evaluar los modelos.
+# S → Tamaño de muestra utilizado en cada iteración o evaluación del modelo.
+# T_min → Número mínimo de árboles con el que comienza la búsqueda del valor óptimo.
+# T_max → Número máximo de árboles considerados durante el ajuste.
+# step → Incremento del número de árboles entre cada iteración de la búsqueda.
+# N → Número de repeticiones o ejecuciones por configuración para promediar resultados y reducir variabilidad.
+# delta → Umbral mínimo de mejora entre iteraciones para considerar que el ajuste ha convergido.
+# random_state → Semilla aleatoria utilizada para garantizar reproducibilidad de los resultados.
+
 # T_ajustado = ajustar_numero_arboles(Dat_np, S, T_min=50, T_max=100, step=5, N=3, F1sta=0.01, random_state=42) # Original
 T_ajustado = ajustar_numero_arboles(Dat_np, S, T_min=50, T_max=100, step=1, N=10, F1sta=0.001, random_state=42) # Ajustado
 # T_ajustado = ajustar_numero_arboles_mejorado(Dat_np, S, T_min=50, T_max=100, step=1, N=3, delta=0.001, random_state=42) # Propuesto

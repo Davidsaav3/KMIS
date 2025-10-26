@@ -21,9 +21,9 @@ if 'anomaly' not in df_global.columns:
     raise ValueError("[ ERROR ] No se encontró columna 'anomaly' en IF global")
 
 # VARIABLES GLOBALES
-y_true_global = df_global['anomaly']                                  # ANOMALÍAS REALES GLOBALES
+y_true_global = df_global['is_anomaly']                                  # ANOMALÍAS REALES GLOBALES
 total_global = int(y_true_global.sum())
-y_pred_global = y_true_global                                         # PREDICCIÓN PERFECTA PARA IF GLOBAL
+y_pred_global = df_global['anomaly']                                     # PREDICCIÓN PERFECTA PARA IF GLOBAL
 
 # CALCULAR TP, FP, FN GLOBALES
 tp_global = ((y_true_global==1) & (y_pred_global==1)).sum()           # VERDADEROS POSITIVOS

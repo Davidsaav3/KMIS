@@ -68,48 +68,41 @@ def ajustar_umbral(Dat, delta=0.2, Th_min=0.0, Th_max=1.0, grad=0.01, Th=0.5, ra
 
 
 # [ MAIN MEJORADO ]
-# [ MAIN ]
-def ajustar_umbral_mejorado(Dat, delta=0.2, grad=0.01, Th_min=0.0, Th_max=1.0, Th=0.5, random_state=None):
-    # Estima el porcentaje de anomalías en un dataset usando búsqueda binaria
-    # sobre el umbral, siguiendo el mismo procedimiento que ajustar_umbral
-    np.random.seed(random_state)
+def ajustar_umbral_mejorado(Dat, grad=0.001, Th_min=0.0, Th_max=1.0, Th=None, random_state=None):
+    np.random.seed(random_state)  # [ CAMBIO ] Mantener reproducibilidad
+
+    #Th_max = np.max(Dat) * 0.05  # [ CAMBIO ] Limita Th_max al 5% del valor máximo → favorece umbrales muy bajos
+    #Th = Th_min + 0.001           # [ CAMBIO ] Inicialización muy cercana a 0, más agresiva que la versión mejorada
 
     while Th_max - Th_min >= grad:
-        mid1 = (Th + Th_min) / 2
-        mid2 = (Th_max + Th) / 2
+        mid = (Th_min + Th_max) / 2  # [ CAMBIO ] Solo un mid en lugar de mid1/mid2 → simplifica búsqueda
+        pct = np.mean(Dat > mid)     # [ CAMBIO ] Usa proporción de datos > umbral en lugar de coste FC
 
-        # Calculamos la proporción de datos sobre el umbral
-        pct1 = np.mean(Dat > mid1)
-        pct2 = np.mean(Dat > mid2)
-
-        print(f"[INFO] Th={Th:.4f}, mid1={mid1:.4f}, pct1={pct1:.4f}, mid2={mid2:.4f}, pct2={pct2:.4f}")
-
-        # Elegimos la mitad donde la proporción cambia más suavemente (imitando la búsqueda binaria original)
-        if pct1 < pct2:
-            Th_max = Th
-            Th = mid1
+        # [ CAMBIO ] Condición explícita para que solo ~1% de los datos quede por encima
+        if pct > 0.01:
+            Th_min = mid
         else:
-            Th_min = Th
-            Th = mid2
+            Th_max = mid
+
+        Th = mid  # [ CAMBIO ] Actualizamos Th directamente con mid, simplificando la lógica
 
     porcentaje_estimado = np.mean(Dat > Th)
-    print(f"[INFO] Porcentaje estimado de anomalías: {porcentaje_estimado:.4f}, Umbral de referencia: {Th:.4f}")
+    print(f"[INFO] Porcentaje estimado: {porcentaje_estimado:.6f}, Umbral: {Th:.6f}")  # [ CAMBIO ] Imprime porcentaje y umbral
+    return porcentaje_estimado, Th  # [ CAMBIO ] Devuelve también porcentaje estimado, no solo Th
 
-    return porcentaje_estimado, Th
-
-
+    
 # CALL
+# Dat_np → Dataset de entrada en formato NumPy sobre el que se ajusta el umbral de detección.
+# delta → Factor de tolerancia o margen usado en el cálculo del coste para evaluar diferencias entre configuraciones.
+# grad → Precisión mínima de la búsqueda binaria; define cuándo detener la iteración sobre el umbral.
+# Th_min → Valor mínimo permitido para el umbral durante la búsqueda.
+# Th_max → Valor máximo permitido para el umbral durante la búsqueda.
+# Th → Valor inicial del umbral desde el cual comienza la búsqueda binaria.
+# random_state → Semilla aleatoria que garantiza reproducibilidad de los resultados.
+
 # Th_ajustado = ajustar_umbral(Dat_np, delta=0.2, Th_min=0.0, Th_max=1.0, grad=0.01, Th=0.5, random_state=42) # Original
 # Th_ajustado = ajustar_umbral(Dat_np, delta=0.2, Th_min=0.0, Th_max=1.0, grad=0.01, Th=0.5, random_state=42) # Ajustado
-Th_ajustado, Th_referencia = ajustar_umbral_mejorado(
-    Dat_np,
-    delta=0.2,
-    grad=0.001,       # precisión de la búsqueda binaria
-    Th_min=0.0,
-    Th_max=1.0,
-    Th=0.5,
-    random_state=42
-)
+Th_ajustado, Th_referencia = ajustar_umbral_mejorado(Dat_np, grad=0.005, Th_min=0.0, Th_max=1.0, Th=None, random_state=42)
 print(f"[FIN] hiperparameters.json actualizado con Th={Th_ajustado}")
 
 

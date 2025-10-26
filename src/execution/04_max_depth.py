@@ -119,6 +119,12 @@ else:
 
 
 # CALL
+# Dat_np → Dataset de entrada en formato NumPy sobre el que se ajusta la profundidad máxima del modelo.
+# S → Tamaño de muestra utilizado en cada iteración del ajuste.
+# betha → Factor o parámetro que controla la sensibilidad o tasa de ajuste de la profundidad.
+# random_state → Semilla aleatoria para garantizar la reproducibilidad de los resultados.
+# max_iter → Número máximo de iteraciones permitidas durante el proceso de ajuste.
+
 # D_ajustado = ajustar_profundidad_maxima(Dat_np, S=S, betha=0.2, random_state=42, max_iter=50)
 # D_ajustado = ajustar_profundidad_maxima(Dat_np, S, betha=0.2, random_state=42) # Ajustado        
 D_ajustado = ajustar_profundidad_maxima_mejorado( Dat_np, S=S, betha=0.5, random_state=42, max_iter=10) # 
