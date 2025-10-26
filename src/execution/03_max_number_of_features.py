@@ -5,17 +5,17 @@ import json
 import os
 
 # PARÁMETROS DE ENTRADA Y SALIDA
-INPUT_CSV = '../../results/preparation/05_variance_recortado.csv'  # RUTA DEL CSV CON DATASET
-HIP_JSON = '../../results/execution/hiperparameters.json'  # RUTA DEL JSON DE HIPERPARÁMETROS
+INPUT_CSV = '../../results/preparation/05_variance_recortado.csv'  # CSV CON DATASET
+HIP_JSON = '../../results/execution/hiperparameters.json'  # JSON DE HIPERPARÁMETROS
 
 # CARGAR DATASET
-df = pd.read_csv(INPUT_CSV)  # LEER CSV DE ENTRADA
+df = pd.read_csv(INPUT_CSV)  # LEER CSV
 
 # ELIMINAR COLUMNA 'is_anomaly' SI EXISTE
 if 'is_anomaly' in df.columns:
     df = df.drop(columns=['is_anomaly'])  # ELIMINAR COLUMNA NO NECESARIA
 
-# CONVERTIR COLUMNAS NUMÉRICAS A ARRAY NUMPY
+# CONVERTIR COLUMNAS NUMÉRICAS A NUMPY
 Dat_np = df.select_dtypes(include=[np.number]).values  # EXTRAER SOLO DATOS NUMÉRICOS
 
 
@@ -67,38 +67,35 @@ def ajustar_numero_caracteristicas(Dat, F_inicial=1.0, alpha_reduccion=0.5, alph
         else:
             print("[INFO] F ajustado encontrado")
             return F
-        
+
 
 # [ MAIN MEJORADO ]
 def ajustar_numero_caracteristicas_mejorado(Dat, F_inicial=1.0, alpha_reduccion=0.9, alpha_aumento=1.05, reps=5, F_min=0.1, random_state=None):
-    import numpy as np  # [ CAMBIO ] importar dentro de la función
-    from sklearn.preprocessing import MinMaxScaler  # [ CAMBIO ] importar dentro de la función
-
-    np.random.seed(random_state)  # FIJAR SEMILLA para reproducibilidad
-    scaler = MinMaxScaler()  # CREAR escalador MinMax
-    Dat_norm = scaler.fit_transform(Dat)  # NORMALIZAR datos a rango [0,1]
+    np.random.seed(random_state)  # FIJAR SEMILLA
+    scaler = MinMaxScaler()
+    Dat_norm = scaler.fit_transform(Dat)  # NORMALIZAR [0,1]
     print("[INFO] Dataset normalizado a rango [0,1]")
 
-    num_features = Dat.shape[1]  # OBTENER número de columnas
-    F_max = 1.0  # DEFINIR valor máximo de F
-    F_min = max(F_min, 1.0 / num_features)  # [ CAMBIO ] mínimo absoluto >= 1/num_features
-    F = min(F_inicial, F_max)  # [ CAMBIO ] no superar F_max al iniciar
+    num_features = Dat.shape[1]  # NÚMERO DE COLUMNAS
+    F_max = 1.0  # LÍMITE SUPERIOR
+    F_min = max(F_min, 1.0 / num_features)  # [CAMBIO] MÍNIMO ABSOLUTO
+    F = min(F_inicial, F_max)  # [CAMBIO] NO SUPERAR F_MAX AL INICIO
     print(f"[INFO] F inicial: {F:.4f}")
 
-    max_iter = 50  # [ CAMBIO ] límite de iteraciones para evitar bucle infinito
-    iter_count = 0  # [ CAMBIO ] contador de iteraciones
+    max_iter = 50  # [CAMBIO] LÍMITE ITERACIONES
+    iter_count = 0  # CONTADOR
 
-    while iter_count < max_iter:  # [ CAMBIO ] bucle controlado por max_iter
+    while iter_count < max_iter:
         iter_count += 1
-        V_prom_list = []  # [ CAMBIO ] lista para promediar varianzas de varias submuestras
+        V_prom_list = []  # [CAMBIO] LISTA PARA PROMEDIO VARIANZAS
 
-        for r in range(reps):  # [ CAMBIO ] repetir varias submuestras para estabilidad
-            n_selected = max(1, int(F * num_features))  # NÚMERO de características seleccionadas
+        for r in range(reps):  # [CAMBIO] VARIAS SUBMUESTRAS
+            n_selected = max(1, int(F * num_features))
             selected_idx = np.random.choice(num_features, size=n_selected, replace=False)
             selected_features = Dat_norm[:, selected_idx]
-            V_prom_list.append(np.mean(np.var(selected_features, axis=0)))  # [ CAMBIO ] almacenar varianza promedio de submuestra
+            V_prom_list.append(np.mean(np.var(selected_features, axis=0)))  # [CAMBIO] PROMEDIO SUBMUESTRA
 
-        V_prom = np.mean(V_prom_list)  # [ CAMBIO ] promedio de todas las repeticiones
+        V_prom = np.mean(V_prom_list)  # [CAMBIO] PROMEDIO REPETICIONES
         sigma_2_full = np.var(Dat_norm, axis=0)
         Q1, Q2, Q3, Q4 = np.percentile(sigma_2_full, [25, 50, 75, 100])
         BQ1F = (Q1 + Q2) / 2
@@ -106,21 +103,21 @@ def ajustar_numero_caracteristicas_mejorado(Dat, F_inicial=1.0, alpha_reduccion=
 
         print(f"[INFO] Iter {iter_count}: V_prom={V_prom:.4f}, BQ1F={BQ1F:.4f}, BQ4F={BQ4F:.4f}, F={F:.4f}")
 
-        # [ CAMBIO ] Reducción agresiva de F incluso si varianza está dentro del rango
+        # REDUCCIÓN AGRESIVA
         F_new = max(F * alpha_reduccion, F_min)
-        F_new = min(F_new, F_max)  # [ CAMBIO ] no superar F_max
+        F_new = min(F_new, F_max)
         if F_new == F:
             print("[INFO] F alcanzó F_min o F_max, se retorna F")
             break
         F = F_new
         print(f"[INFO] Reducción agresiva de F a {F:.4f}")
 
-        # [ CAMBIO ] Aumento ligero de F si varianza demasiado baja
+        # AUMENTO LIGERO SI VARIANZA BAJA
         if V_prom < BQ1F:
             F = min(F * alpha_aumento, F_max)
             print(f"[INFO] Ajuste aumento F a {F:.4f} por varianza baja")
 
-        # [ CAMBIO ] condición de parada si F está cerca del mínimo
+        # CONDICIÓN DE PARADA
         if F <= F_min + 0.01:
             print("[INFO] F cerca de F_min, finalizando ajuste")
             break
@@ -129,37 +126,37 @@ def ajustar_numero_caracteristicas_mejorado(Dat, F_inicial=1.0, alpha_reduccion=
     return F
 
 
-# CALLS
-# Dat_np → Dataset de entrada en formato NumPy sobre el que se ajusta el número de características.
-# F_inicial → Valor inicial del número relativo de características a utilizar (punto de partida del ajuste).
-# alpha_reduccion → Factor de reducción aplicado cuando la configuración no mejora (controla la disminución gradual de características).
-# alpha_aumento → Factor de aumento aplicado cuando la configuración mejora (controla el incremento de características).
-# reps → Número de repeticiones por iteración para promediar resultados y reducir variabilidad aleatoria.
-# F_min → Número mínimo de características permitido durante el ajuste.
-# random_state → Semilla aleatoria que garantiza la reproducibilidad del procedimiento.
+# [ HIPERPARÁMETROS ]
+# DAT_NP → DATASET EN NUMPY
+# F_INICIAL → VALOR INICIAL DE CARACTERÍSTICAS
+# ALPHA_REDUCCION → FACTOR DE REDUCCIÓN
+# ALPHA_AUMENTO → FACTOR DE AUMENTO
+# REPS → REPETICIONES POR ITERACIÓN
+# F_MIN → MÍNIMO DE CARACTERÍSTICAS
+# RANDOM_STATE → SEMILLA ALEATORIA
 
 # F_ajustado = ajustar_numero_caracteristicas(Dat_np, F_inicial=1.0, alpha_reduccion=0.5, alpha_aumento=1.5, random_state=42) # Original
 # F_ajustado = ajustar_numero_caracteristicas_mejorado(Dat_np, F_inicial=1.0, alpha_reduccion=0.5, alpha_aumento=1.5, reps=5, random_state=42) # Ajustado
-# def ajustar_numero_caracteristicas_mejorado(Dat, F_inicial=1.0, alpha_reduccion=0.9, alpha_aumento=1.05, reps=5, F_min=0.1, random_state=None)
-F_ajustado = ajustar_numero_caracteristicas_mejorado(Dat_np, F_inicial=1.0, alpha_reduccion=0.98, alpha_aumento=1.3, reps=10, F_min=0.25, random_state=42 )
+# F_ajustado = ajustar_numero_caracteristicas_mejorado(Dat, F_inicial=1.0, alpha_reduccion=0.9, alpha_aumento=1.05, reps=5, F_min=0.1, random_state=None)
+F_ajustado = ajustar_numero_caracteristicas_mejorado(Dat_np, F_inicial=1.0, alpha_reduccion=0.98, alpha_aumento=1.3, reps=10, F_min=0.25, random_state=42)
 print(f"[FIN] hiperparameters.json actualizado con F={F_ajustado:.4f}")
 
 
-# ACTUALIZAR O CREAR JSON DE HIPERPARÁMETROS
+# CREAR O ACTUALIZAR JSON
 if os.path.exists(HIP_JSON):
     with open(HIP_JSON, 'r', encoding='utf-8') as f:
         hip_data = json.load(f)  # LEER JSON EXISTENTE
 else:
-    hip_data = {}  # CREAR NUEVO SI NO EXISTE
+    hip_data = {}  # NUEVO JSON
 
-# GUARDAR NUEVO VALOR DE F EN JSON
+# GUARDAR VALOR AJUSTADO DE F
 hip_data['F'] = {
-    "value": F_ajustado,  # VALOR FINAL AJUSTADO
+    "value": F_ajustado,  # VALOR FINAL
     "description": "Maximum number of features considered per tree",  # DESCRIPCIÓN
-    "adjustment_method": "Increment/decrement search based on variance",  # MÉTODO DE AJUSTE
+    "adjustment_method": "Increment/decrement search based on variance",  # MÉTODO AJUSTE
     "default": 1.0  # VALOR POR DEFECTO
 }
 
-# ESCRIBIR JSON ACTUALIZADO
+# GUARDAR JSON
 with open(HIP_JSON, 'w', encoding='utf-8') as f:
     json.dump(hip_data, f, indent=4)  # GUARDAR CON FORMATO

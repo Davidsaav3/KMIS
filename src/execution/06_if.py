@@ -54,7 +54,7 @@ else:
 
 # INTEGRAR D EN MAX SAMPLES S
 # Scikit-learn calcula automáticamente la profundidad de los árboles hasta log2(max_samples) o hasta que se cumpla la condición de aislamiento de nodos.
-print(f"[INFO] S: {S}")
+# print(f"[INFO] S: {S}")
 # D_max = int(math.log2(S))
 # max_samples = max(1, int(S * D / D_max)) # reduce el número de muestras por árbol para que la profundidad efectiva sea aproximadamente D
 # print(f"[INFO] max_samples: {max_samples}")

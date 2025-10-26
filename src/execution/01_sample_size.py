@@ -4,18 +4,18 @@ import json
 import os
 
 # PARÁMETROS DE ENTRADA Y SALIDA
-INPUT_CSV = '../../results/execution/00_contaminated.csv'  # RUTA DEL CSV DE DATOS
-HIP_JSON = '../../results/execution/hiperparameters.json'  # RUTA DEL JSON DE HIPERPARÁMETROS
+INPUT_CSV = '../../results/execution/00_contaminated.csv'  # RUTA CSV DATOS
+HIP_JSON = '../../results/execution/hiperparameters.json'  # RUTA JSON HIPERPARÁMETROS
 
 # CARGAR DATASET
-df = pd.read_csv(INPUT_CSV)  # LEER CSV CON DATOS
+df = pd.read_csv(INPUT_CSV)  # LEER CSV
 
 # ELIMINAR COLUMNA 'is_anomaly' SI EXISTE
 if 'is_anomaly' in df.columns:
-    df = df.drop(columns=['is_anomaly'])  # ELIMINAR COLUMNA NO NECESARIA PARA AJUSTE
+    df = df.drop(columns=['is_anomaly'])  # ELIMINAR COLUMNA NO NECESARIA
 
 # APLANAR COLUMNAS NUMÉRICAS A VECTORIZADO 1D
-data = df.select_dtypes(include=[np.number]).values.flatten()  # EXTRAER Y APLANAR DATOS NUMÉRICOS
+data = df.select_dtypes(include=[np.number]).values.flatten()  # EXTRAER Y APLANAR DATOS
 
 
 # [ MAIN ]
@@ -46,64 +46,64 @@ def ajustar_tamano_muestra(Dat, S_inicial=256, e_sigma=0.05, IncDat=0.1, random_
 
 # [ MAIN MEJORADO ]
 def ajustar_tamano_muestra_mejorado(Dat, S_inicial=40, e_sigma=0.01, IncDat=0.05, reps=10, random_state=None):
-    np.random.seed(random_state)  # FIJAR SEMILLA PARA REPRODUCIBILIDAD
-    S = S_inicial  # INICIALIZAR TAMAÑO DE MUESTRA
-    print(f"[INFO] Tamaño inicial de muestra: {S}")
+    np.random.seed(random_state)  # FIJAR SEMILLA
+    S = S_inicial  # INICIALIZAR TAMAÑO
+    print(f"[INFO] TAMAÑO INICIAL MUESTRA: {S}")
 
-    sigma_obj = np.std(Dat)  # DESVIACIÓN ESTANDAR DEL CONJUNTO COMPLETO
-    # [ CAMBIO ] En la versión anterior era sigma_o, calculado igual, pero no se usaba promedio de submuestras.
+    sigma_obj = np.std(Dat)  # DESVIACIÓN ESTANDAR CONJUNTO COMPLETO
+    # [ CAMBIO ] ANTES ERA sigma_o, no se usaba promedio submuestras.
 
-    # [ CAMBIO ] Nueva función interna para calcular desviación promedio de varias submuestras
-    # Esto mejora la estabilidad frente a la variabilidad aleatoria.
+    # [ CAMBIO ] FUNCIÓN INTERNA PARA DESVIACIÓN PROMEDIO DE SUBMUESTRAS
     def sigma_promedio(S):
-        muestras = [np.random.choice(Dat, size=S, replace=False) for _ in range(reps)]  # [ CAMBIO ] varias submuestras
-        return np.mean([np.std(m) for m in muestras])  # [ CAMBIO ] promedio de desviaciones en vez de una sola muestra
+        muestras = [np.random.choice(Dat, size=S, replace=False) for _ in range(reps)]  # [ CAMBIO ] VARIAS SUBMUESTRAS
+        return np.mean([np.std(m) for m in muestras])  # [ CAMBIO ] PROMEDIO DESVIACIONES
 
-    sigma_muestra = sigma_promedio(S)  # [ CAMBIO ] Cálculo más robusto de la desviación inicial
-    print(f"[INFO] Desviación promedio de la muestra inicial: {sigma_muestra:.4f}")
+    sigma_muestra = sigma_promedio(S)  # [ CAMBIO ] DESVIACIÓN INICIAL PROMEDIO
+    print(f"[INFO] DESVIACIÓN PROMEDIO MUESTRA INICIAL: {sigma_muestra:.4f}")
 
-    # [ CAMBIO ] Bucle optimizado: incremento dinámico según diferencia entre sigma_obj y sigma_muestra
+    # [ CAMBIO ] BUCLE OPTIMIZADO: INCREMENTO DINÁMICO SEGÚN DIFERENCIA SIGMA
     while S < len(Dat) and not (sigma_obj - e_sigma <= sigma_muestra <= sigma_obj + e_sigma):
         incremento = max(1, int(S * IncDat * abs(sigma_obj - sigma_muestra) / sigma_obj))  
-        # [ CAMBIO ] incremento variable, ajustado proporcionalmente al error relativo de sigma
-        
-        S = min(S + incremento, len(Dat))  # ACTUALIZAR TAMAÑO DE MUESTRA SIN SUPERAR TOTAL
-        sigma_muestra = sigma_promedio(S)  # [ CAMBIO ] recalcular con promedio en lugar de una sola muestra
+        # [ CAMBIO ] INCREMENTO VARIABLE SEGÚN ERROR RELATIVO
 
-        print(f"[INFO] Incrementando tamaño de muestra a: {S}")  # INFORMAR NUEVO TAMAÑO
-        print(f"[INFO] Desviación promedio de la nueva muestra: {sigma_muestra:.4f}")  # INFORMAR NUEVA DESVIACIÓN
+        S = min(S + incremento, len(Dat))  # ACTUALIZAR TAMAÑO SIN SUPERAR TOTAL
+        sigma_muestra = sigma_promedio(S)  # [ CAMBIO ] RECALCULAR PROMEDIO
 
-    print(f"[INFO] Tamaño de muestra final ajustado: {S}")  # MOSTRAR RESULTADO FINAL
-    return S  # RETORNAR TAMAÑO DE MUESTRA AJUSTADO
+        print(f"[INFO] INCREMENTANDO TAMAÑO MUESTRA A: {S}")  # INFORMAR NUEVO TAMAÑO
+        print(f"[INFO] DESVIACIÓN PROMEDIO NUEVA MUESTRA: {sigma_muestra:.4f}")  # INFORMAR NUEVA DESVIACIÓN
 
-
-# CALL
-# data → Dataset base sobre el que se calcula el tamaño óptimo de muestra.
-# S_inicial → Tamaño de muestra inicial que actúa como punto de partida en el proceso de ajuste.
-# e_sigma → Error o tolerancia de convergencia; indica cuándo detener el ajuste (menor valor = mayor precisión).
-# IncDat → Porcentaje de contaminación o perturbación introducida en cada iteración para medir estabilidad.
-# reps → Número de repeticiones por iteración para obtener resultados más estables y menos dependientes del azar.
-# random_state → Semilla aleatoria que garantiza la reproducibilidad del ajuste.
-
-# S_ajustado = ajustar_tamano_muestra(data, S_inicial=256, e_sigma=0.05, IncDat=0.1, random_state=42) # Original
-# S_ajustado = ajustar_tamano_muestra(data, S_inicial=40, e_sigma=0.01, IncDat=0.05, random_state=42) # Ajustado
-S_ajustado = ajustar_tamano_muestra_mejorado(data, S_inicial=40, e_sigma=0.01, IncDat=0.05, reps=10, random_state=42) # Propuesto
-print(f"[FIN] hiperparameters.json actualizado con S={S_ajustado}")
+    print(f"[INFO] TAMAÑO FINAL MUESTRA AJUSTADO: {S}")  # MOSTRAR RESULTADO FINAL
+    return S  # RETORNAR TAMAÑO AJUSTADO
 
 
-# LEER O CREAR JSON DE HIPERPARÁMETROS
+# [ HIPERPARÁMETROS ]
+# DATA → DATASET BASE PARA CALCULAR TAMAÑO ÓPTIMO MUESTRA
+# S_INICIAL → TAMAÑO INICIAL MUESTRA, PUNTO DE PARTIDA AJUSTE
+# E_SIGMA → ERROR/TOLERANCIA CONVERGENCIA (MENOR = MÁS PRECISIÓN)
+# INCDAT → INCREMENTO PORCENTAJE PARA AJUSTE
+# REPS → NÚMERO REPETICIONES POR ITERACIÓN PARA ESTABILIDAD
+# RANDOM_STATE → SEMILLA ALEATORIA PARA REPRODUCIBILIDAD
+
+# S_ajustado = ajustar_tamano_muestra(data, S_inicial=256, e_sigma=0.05, IncDat=0.1, random_state=42)  # ORIGINAL
+# S_ajustado = ajustar_tamano_muestra(data, S_inicial=40, e_sigma=0.01, IncDat=0.05, random_state=42)  # AJUSTADO
+S_ajustado = ajustar_tamano_muestra_mejorado(data, S_inicial=40, e_sigma=0.01, IncDat=0.05, reps=10, random_state=42)  # PROPUESTO
+print(f"[FIN] HIPERPARAMETERS.JSON ACTUALIZADO")
+
+# LEER O CREAR JSON HIPERPARÁMETROS
 if os.path.exists(HIP_JSON):
     with open(HIP_JSON, 'r', encoding='utf-8') as f:
         hip_data = json.load(f)  # CARGAR JSON EXISTENTE
 else:
-    hip_data = {}  # CREAR NUEVO JSON SI NO EXISTE
+    hip_data = {}  # CREAR NUEVO JSON
+
 # ACTUALIZAR INFORMACIÓN DE S
 hip_data['S'] = {
     "value": S_ajustado,  # VALOR AJUSTADO
     "description": "Sample size for Isolation Forest",  # DESCRIPCIÓN
-    "adjustment_method": "Standard deviation based incremental sampling",  # MÉTODO DE AJUSTE
+    "adjustment_method": "Standard deviation based incremental sampling",  # MÉTODO AJUSTE
     "default": 256  # VALOR POR DEFECTO
 }
+
 # GUARDAR JSON ACTUALIZADO
 with open(HIP_JSON, 'w', encoding='utf-8') as f:
     json.dump(hip_data, f, indent=4)  # GUARDAR HIPERPARÁMETROS

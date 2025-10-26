@@ -4,30 +4,32 @@ import json
 import os
 
 # PARÁMETROS DE ENTRADA Y SALIDA
-INPUT_CSV = '../../results/preparation/05_variance_recortado.csv'  # CSV DE DATOS
+INPUT_CSV = '../../results/preparation/05_variance_recortado.csv'  # CSV DE DATOS NUMÉRICOS
 HIP_JSON = '../../results/execution/hiperparameters.json'  # JSON DE HIPERPARÁMETROS
 
 # CARGAR DATASET
-df = pd.read_csv(INPUT_CSV)  # LEER CSV
+df = pd.read_csv(INPUT_CSV)  # LEER CSV DESDE DISCO
 
 # ELIMINAR COLUMNA 'is_anomaly' SI EXISTE
 if 'is_anomaly' in df.columns:
-    df = df.drop(columns=['is_anomaly'])  # QUITAR COLUMNA NO NECESARIA
+    df = df.drop(columns=['is_anomaly'])  # QUITAR COLUMNA NO NECESARIA PARA AJUSTE
 
 # CONVERTIR COLUMNAS NUMÉRICAS A VECTORIZADO 1D
-Dat_np = df.select_dtypes(include=[np.number]).values.flatten()  # EXTRAER DATOS NUMÉRICOS
+Dat_np = df.select_dtypes(include=[np.number]).values.flatten()  # EXTRAER Y APLANAR DATOS NUMÉRICOS
 
-# CONTAMINA 5% DEL DATASET CON ANOMALÍAS ARTIFICIALES
+
+# [ CONTAMINAR 5% ] 
 def contaminar_dat_5pct(Dat, porcentaje=0.05, incremento=0.5, random_state=None):
-    np.random.seed(random_state)  # FIJAR SEMILLA ALEATORIA
+    np.random.seed(random_state)  # FIJAR SEMILLA PARA REPRODUCIBILIDAD
     S = len(Dat)  # TAMAÑO TOTAL DE DATOS
-    n_anom = max(1, int(S * porcentaje))  # CALCULAR NÚMERO DE ANOMALÍAS
-    Dat_contaminado = Dat.copy()  # COPIA DE DATOS PARA CONTAMINAR
-    indices_anom = np.random.choice(S, size=n_anom, replace=False)  # SELECCIONAR ÍNDICES ALEATORIOS
+    n_anom = max(1, int(S * porcentaje))  # NÚMERO DE ANOMALÍAS A CREAR
+    Dat_contaminado = Dat.copy()  # COPIA DE DATOS PARA NO MODIFICAR ORIGINAL
+    indices_anom = np.random.choice(S, size=n_anom, replace=False)  # ÍNDICES ALEATORIOS PARA ANOMALÍAS
     Dat_contaminado[indices_anom] *= (1 + incremento)  # INCREMENTAR VALORES SELECCIONADOS
-    return Dat_contaminado, indices_anom  # DEVOLVER DATOS CONTAMINADOS Y ÍNDICES
+    return Dat_contaminado, indices_anom  # DEVOLVER DATOS CONTAMINADOS Y SUS ÍNDICES
 
-# CALCULA FUNCION DE COSTE FC (FP Y FN PONDERADOS)
+
+# [ FUNCIÓN DE COSTE ] 
 def calcular_FC(Dat_cont, indices_anom, Th, delta=0.2):
     pred = np.zeros(len(Dat_cont))  # INICIALIZAR PREDICCIONES
     pred[Dat_cont >= Th] = 1  # MARCAR ANOMALÍAS SEGÚN UMBRAL
@@ -36,12 +38,11 @@ def calcular_FC(Dat_cont, indices_anom, Th, delta=0.2):
     FP = np.sum((pred == 1) & (y_true == 0)) / max(1, np.sum(y_true == 0))  # CALCULAR FALSOS POSITIVOS
     FN = np.sum((pred == 0) & (y_true == 1)) / max(1, np.sum(y_true == 1))  # CALCULAR FALSOS NEGATIVOS
     FC = delta * FP + (1 - delta) * FN  # PONDERAR FP Y FN
-    return FC  # DEVOLVER FC
+    return FC  # DEVOLVER COSTE
 
 
-# [ MAIN ]
+# [ MAIN ] 
 def ajustar_umbral(Dat, delta=0.2, Th_min=0.0, Th_max=1.0, grad=0.01, Th=0.5, random_state=None):
-    
     np.random.seed(random_state)  # FIJAR SEMILLA
     Dat_cont, indices_anom = contaminar_dat_5pct(Dat, porcentaje=0.05, incremento=0.5, random_state=random_state)  # CONTAMINAR DATOS
     print(f"[INFO] Dataset contaminado con {len(indices_anom)} anomalías")
@@ -67,57 +68,56 @@ def ajustar_umbral(Dat, delta=0.2, Th_min=0.0, Th_max=1.0, grad=0.01, Th=0.5, ra
     return Th  # DEVOLVER UMBRAL AJUSTADO
 
 
-# [ MAIN MEJORADO ]
+# [ MAIN MEJORADO ] 
 def ajustar_umbral_mejorado(Dat, grad=0.001, Th_min=0.0, Th_max=1.0, Th=None, random_state=None):
-    np.random.seed(random_state)  # [ CAMBIO ] Mantener reproducibilidad
-
-    #Th_max = np.max(Dat) * 0.05  # [ CAMBIO ] Limita Th_max al 5% del valor máximo → favorece umbrales muy bajos
-    #Th = Th_min + 0.001           # [ CAMBIO ] Inicialización muy cercana a 0, más agresiva que la versión mejorada
+    np.random.seed(random_state)  # [ CAMBIO ] FIJAR SEMILLA PARA REPRODUCIBILIDAD
 
     while Th_max - Th_min >= grad:
-        mid = (Th_min + Th_max) / 2  # [ CAMBIO ] Solo un mid en lugar de mid1/mid2 → simplifica búsqueda
-        pct = np.mean(Dat > mid)     # [ CAMBIO ] Usa proporción de datos > umbral en lugar de coste FC
+        mid = (Th_min + Th_max) / 2  # [ CAMBIO ] SIMPLIFICAR A UN MID
+        pct = np.mean(Dat > mid)     # [ CAMBIO ] PROPORCIÓN DE DATOS > UMBRAL
 
-        # [ CAMBIO ] Condición explícita para que solo ~1% de los datos quede por encima
+        # [ CAMBIO ] AJUSTE PARA QUE SOLO ~1% DE DATOS QUEDEN POR ENCIMA
         if pct > 0.01:
             Th_min = mid
         else:
             Th_max = mid
 
-        Th = mid  # [ CAMBIO ] Actualizamos Th directamente con mid, simplificando la lógica
+        Th = mid  # [ CAMBIO ] ACTUALIZAR TH DIRECTAMENTE
 
     porcentaje_estimado = np.mean(Dat > Th)
-    print(f"[INFO] Porcentaje estimado: {porcentaje_estimado:.6f}, Umbral: {Th:.6f}")  # [ CAMBIO ] Imprime porcentaje y umbral
-    return porcentaje_estimado, Th  # [ CAMBIO ] Devuelve también porcentaje estimado, no solo Th
+    print(f"[INFO] PORCENTAJE ESTIMADO: {porcentaje_estimado:.6f}, UMBRAL: {Th:.6f}")  # [ CAMBIO ] IMPRIMIR PORCENTAJE Y UMBRAL
+    return porcentaje_estimado, Th  # [ CAMBIO ] DEVOLVER TAMBIÉN EL PORCENTAJE
 
-    
-# CALL
-# Dat_np → Dataset de entrada en formato NumPy sobre el que se ajusta el umbral de detección.
-# delta → Factor de tolerancia o margen usado en el cálculo del coste para evaluar diferencias entre configuraciones.
-# grad → Precisión mínima de la búsqueda binaria; define cuándo detener la iteración sobre el umbral.
-# Th_min → Valor mínimo permitido para el umbral durante la búsqueda.
-# Th_max → Valor máximo permitido para el umbral durante la búsqueda.
-# Th → Valor inicial del umbral desde el cual comienza la búsqueda binaria.
-# random_state → Semilla aleatoria que garantiza reproducibilidad de los resultados.
+
+# [ HIPERPARÁMETROS ]
+# Dat_np → DATASET DE ENTRADA EN FORMATO NUMPY
+# delta → FACTOR DE TOLERANCIA PARA CALCULO DE COSTE
+# grad → PRECISIÓN MÍNIMA PARA DETENER BÚSQUEDA BINARIA
+# Th_min → VALOR MÍNIMO DEL UMBRAL
+# Th_max → VALOR MÁXIMO DEL UMBRAL
+# Th → VALOR INICIAL DEL UMBRAL
+# random_state → SEMILLA ALEATORIA
 
 # Th_ajustado = ajustar_umbral(Dat_np, delta=0.2, Th_min=0.0, Th_max=1.0, grad=0.01, Th=0.5, random_state=42) # Original
 # Th_ajustado = ajustar_umbral(Dat_np, delta=0.2, Th_min=0.0, Th_max=1.0, grad=0.01, Th=0.5, random_state=42) # Ajustado
 Th_ajustado, Th_referencia = ajustar_umbral_mejorado(Dat_np, grad=0.005, Th_min=0.0, Th_max=1.0, Th=None, random_state=42)
-print(f"[FIN] hiperparameters.json actualizado con Th={Th_ajustado}")
-
+print(f"[FIN] HIPERPARAMETERS.JSON ACTUALIZADO CON Th={Th_ajustado}")
 
 # CREAR O ACTUALIZAR JSON DE HIPERPARÁMETROS
 if os.path.exists(HIP_JSON):
     with open(HIP_JSON, 'r', encoding='utf-8') as f:
-        hip_data = json.load(f)  # CARGAR EXISTENTE
+        hip_data = json.load(f)  # CARGAR JSON EXISTENTE
 else:
-    hip_data = {}  # CREAR NUEVO
+    hip_data = {}  # CREAR NUEVO JSON
+
 # GUARDAR VALOR AJUSTADO DE Th
 hip_data['Th'] = {
     "value": Th_ajustado,
-    "description": "Detection threshold to classify anomalies",
-    "adjustment_method": "Binary search minimizing cost function (FP,FN)",
+    "description": "DETECTION THRESHOLD TO CLASSIFY ANOMALIES",
+    "adjustment_method": "BINARY SEARCH MINIMIZING COST FUNCTION (FP,FN)",
     "default": 1.0
 }
+
+# GUARDAR JSON FORMATEADO
 with open(HIP_JSON, 'w', encoding='utf-8') as f:
-    json.dump(hip_data, f, indent=4)  # GUARDAR JSON
+    json.dump(hip_data, f, indent=4)  # GUARDAR JSON ACTUALIZADO
