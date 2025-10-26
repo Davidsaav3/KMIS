@@ -74,7 +74,7 @@ def ajustar_tamano_muestra_mejorado(Dat, S_inicial=40, e_sigma=0.01, IncDat=0.05
 
     print(f"[INFO] TAMAÑO FINAL MUESTRA AJUSTADO: {S}")  # MOSTRAR RESULTADO FINAL
     return S  # RETORNAR TAMAÑO AJUSTADO
-
+ 
 
 # [ HIPERPARÁMETROS ]
 # DATA → DATASET BASE PARA CALCULAR TAMAÑO ÓPTIMO MUESTRA

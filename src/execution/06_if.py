@@ -17,7 +17,6 @@ HIP_JSON = os.path.join(EXECUTION_FOLDER, 'hiperparameters.json')  # JSON DE HIP
 # CONFIGURACIÓN DE OPCIONES
 SAVE_ANOMALY_CSV = True          # GUARDAR CSV SOLO CON ANOMALÍAS
 SORT_ANOMALY_SCORE = True        # ORDENAR ANOMALÍAS POR SCORE
-INCLUDE_SCORE = True             # INCLUIR SCORE EN CSV DE ANOMALÍAS
 NORMALIZE_SCORE = True           # NORMALIZAR SCORE ENTRE 0 Y 1
 SHOW_INFO = True                 # MOSTRAR INFO EN CONSOLA
 RANDOM_STATE = 42                # SEMILLA ALEATORIA
@@ -60,6 +59,14 @@ else:
 # print(f"[INFO] max_samples: {max_samples}")
 
 # CONFIGURAR Y ENTRENAR ISOLATION FOREST
+clf_params = {
+    "n_estimators": 100,
+    "max_samples": 256,
+    "contamination": 0.12,
+    "max_features": 1.0,
+    "random_state": RANDOM_STATE, 
+    "n_jobs": -1
+}
 clf_params = {
     "n_estimators": T,
     "max_samples": S,
@@ -107,10 +114,6 @@ if SAVE_ANOMALY_CSV:
     # ORDENAR ANOMALÍAS POR SCORE DE MAYOR A MENOR
     if SORT_ANOMALY_SCORE:
         df_anomalies = df_anomalies.sort_values(by='anomaly_score', ascending=False).reset_index(drop=True)
-    
-    # ELIMINAR SCORE SI NO SE DESEA INCLUIR
-    if not INCLUDE_SCORE:
-        df_anomalies.drop(columns=['anomaly_score'], inplace=True)
     
     # GUARDAR CSV DE ANOMALÍAS
     df_anomalies.to_csv(OUTPUT_IF_CSV, index=False)
